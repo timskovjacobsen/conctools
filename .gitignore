@@ -107,3 +107,9 @@ ENV/
 # Excel files
 *.xlsx
 *.xlsm
+
+# PNG-files
+*.png
+
+# Images for explanations in `tests` folder
+tests/img

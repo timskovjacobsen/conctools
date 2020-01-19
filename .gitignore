@@ -116,3 +116,6 @@ tests/img
 
 # Generated (build) files for sphinx documentation
 docs/build/_build
+
+# Sandbox .py-file (for short code tests etc.)
+conctools/sandbox.py

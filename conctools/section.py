@@ -20,67 +20,6 @@ import geometry as gm
 EC = 30 * 10**6
 ES = 200 * 10**6
 
-# TODO OBSOLETE FUNC I THINK; DELETE IF NOT NEEDED (18th Jan 2020)
-# def section_split(section, neutral_axis, compr_above=True):
-#     '''Return a cross section after split by a neutral axis.
-
-#     Parameters
-#     ----------
-#     section : shapely Polygon
-#         Polygon object describing the section geometry.
-#     neutral_axis : shapely LineString
-#         LineString object describing the neutral axis of the section.
-#     compr_above : bool
-#         Whether the compression zone is 'above' or 'below' the neutral axis.
-#         The neutral axis is considered as a line going from the end with the
-#         smallest x-coordinate to the end with the largest.
-#         TODO (DONE!) IMPLEMENT THIS TO DETECT WHERE THE COMPRESSION/TENSION ZONES ARE!
-
-#     Returns
-#     -------
-#     tuple
-#         First and second element represents the compression and tension zone
-#         of the cross section, respectively. Zones are in the form of shapely
-#         Polygons, which are empty if not present.
-
-#     Assumptions
-#     -----------
-#     Currently assumes that neutral axis is horizontal, i.e. angle=0
-#     '''
-#     # Get y-coordinate boundaries for section
-#     _, miny, _, maxy = section.bounds
-
-#     # Get y-coordinate of neutral axis (NOTE Assuming angle=0)
-#     _, y_na, _, _ = neutral_axis.bounds
-
-#     # Use neutral axis to split the cross section in compression and tension zone
-#     # FIXME Find a robust way to know which polygon is compr and tension
-#     if neutral_axis.crosses(section):
-#         # Section is partly in compression partly in tension
-
-#         # Split section into two polygons for compression and tension zone
-#         compr, tension = split(section, neutral_axis)
-
-#     elif maxy <= y_na:
-#         # Section is in pure compression
-
-#         # Set compression zone equal to the entire section
-#         compr = section
-
-#         # Set tension zone equal to an empty Polygon
-#         tension = Polygon()
-
-#     elif miny >= y_na:
-#         # Section is in pure tension
-
-#         # Set tension zone equal to the entire section
-#         tension = section
-
-#         # Set compression zone equal to an empty Polygon
-#         compr = Polygon()
-
-#     return compr, tension
-
 
 def find_compr_tension_zones(section, neutral_axis, compr_above=True):
     '''Return the compression and tension zone of a cross section.
@@ -100,7 +39,7 @@ def find_compr_tension_zones(section, neutral_axis, compr_above=True):
         # Extract x- and y-coordinate for centroid of section
         cx, cy = list(section.centroid.coords)[0]
 
-        section_above = gm.evaluate_points(x=np.array([cx]),y=np.array([cy]),
+        section_above = gm.evaluate_points(x=np.array([cx]), y=np.array([cy]),
                                            angle_deg=angle, y_intersect=y_int)
 
         if section_above:
@@ -213,6 +152,9 @@ def split_compression_zone(compression_zone, neutral_axis, A_gross,
     neutral axis just outside of the section, the compression block might not
     take up the entire section.
     '''
+    # Test if input polygon representing compression zone is non-empty
+    if compression_zone.is_empty:
+        raise Exception('''Cannot split empty compression zone.''')
 
     # Get the point of extreme compression (point in compression furthest from na)
     p_max, _, = gm.furthest_vertex_from_line(compression_zone, neutral_axis)
@@ -252,8 +194,63 @@ def split_compression_zone(compression_zone, neutral_axis, A_gross,
         return compression_block, remainder
 
     else:
-        # The compression block consists of the entire setion, remainder is empty 
+        # The compression block consists of the entire setion, remainder is empty
         return compression_zone, Polygon()
+
+
+def full_compression(compr_zone, neutral_axis, section):
+
+    # Split compression zone into compression block and remainder
+    compr_block, _ = split_compression_zone(compr_zone, neutral_axis,
+                                            section.area, lambda_c=0.8)
+
+    # Set area of concrete in compression to full cross section area
+    Ac = compr_block.area
+
+    # Find y-coordinate for centroid compression block
+    cy = list(compr_block.centroid.coords)[0][1]
+
+    # Signed dist btw. y-coord of plastic center and centroid of compr block
+    arm = section.plastic_centroid[1] - cy
+
+    # Find force and moment contributions to capacity from the concrete
+    Fc, Mc = concrete_contributions(Ac, arm, section.fcd, section.alpha_cc)
+
+    # Find distance from each rebar to neutral axis
+    rd = distance_to_na(section.rebars, neutral_axis)
+    print(rd)
+    # Make all rebar distances negative, since there's full compression
+    rd *= -1
+
+    # Find extreme compression point and dist from that to neutral axis
+    _, failure_dist = gm.furthest_vertex_from_line(compr_zone, neutral_axis)
+
+    return Fc, Mc, rd, failure_dist, compr_block
+
+
+def full_tension(rebars, neutral_axis):
+    '''Return ...
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    '''
+    # Set compression block to empty polygon
+    compr_block = Polygon()
+
+    # No concrete in compression => does not contribute to capacity
+    Fc, Mc = 0, 0
+
+    # Find distance from each rebar to neutral axis
+    rd = distance_to_na(rebars, neutral_axis)
+
+    # Set dist to failure strain point as dist to rebar furthest from na
+    failure_dist = abs(max(rd, key=abs))
+
+    return Fc, Mc, rd, failure_dist, compr_block
 
 
 def concrete_contributions(A_compression, lever_arm, fcd, alpha_cc=1.0):
@@ -298,26 +295,21 @@ def concrete_contributions(A_compression, lever_arm, fcd, alpha_cc=1.0):
     return Fc, Mc
 
 
-def points_distance_to_na(points, angle, y_intersect):
+def distance_to_na(points, neutral_axis):
     '''Return the distance from each rebar to the neutral axis.
 
     Parameters
     ----------
     points : list (or like-like)
         List of shapely Point(s).
-    angle : number
-        The angle between the neutral axis horizontal [degrees].
-    y_intersect : number
-        The intersection between the neutral axis and the y-axis.
+    neutral_axis : shapely LineStrin object
+        Line representing the neutral axis.
 
     Returns
     -------
     numpy ndarray
         Array with elements representing distance from neutral axis to each point.
     '''
-    # Create a line representing the neutral axis
-    neutral_axis = gm.create_line(angle=angle, y_intersect=y_intersect)
-
     # Return list of distances from each point to the neutral axis
     return np.array([neutral_axis.distance(point) for point in points])
 
@@ -416,44 +408,4 @@ def totals(array_of_arrays):
 
 
 if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    import geometry as gm
-
-    c_zone = Polygon([(0, 100), (0, 500), (250, 500), (250, 100)])
-    na = gm.create_line(angle=0, y_intersect=100),
-    A_gross = 125000
-    r = split_compression_zone(c_zone, na[0], A_gross)
-    # print(r[0].exterior.xy)
-
-    c_zone_compr_vertices = r[0].exterior.xy
-    c_zone_remainder_vertices = r[1].exterior.xy
-
-    from shapely.geometry import MultiPolygon
-    mp = MultiPolygon(r)
-    print(mp)
-    print(mp.equals(mp))
-
-    print(c_zone_compr_vertices)
-    print(c_zone_remainder_vertices)
-
-    print(np.array(c_zone_compr_vertices))
-    print(np.array(c_zone_remainder_vertices))
-
-    c_zone_final = (*c_zone_compr_vertices, *c_zone_remainder_vertices)
-
-    p1 = Polygon([(0, 100), (0, 500), (250, 500), (250, 100)])
-    p2 = Polygon([(0, 500), (250, 500), (250, 100), (0, 100)])
-    p3 = Polygon([(0, 100), (0, 500), (250, 500), (250, 100)])
-
-    print(p1.is_valid)
-    print(p2.is_valid)
-    print(p3.is_valid)
-
-    print(p1.equals(p2))
-    print(p1.equals(p3))
-    print(p1 == p2)
-    print(p1 == p3)
-
-    # plt.plot(*c_zone.exterior.xy, '.')
-    # plt.plot(*r[0].exterior.xy)
-    # plt.show()
+    pass

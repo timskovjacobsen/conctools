@@ -97,15 +97,10 @@ class Section:
         # Compute geometric centroid of section and set it as attributes
         self.geometric_centroid = self.polygon.centroid.x, self.polygon.centroid.y
 
-        # Compute elastic centroid of section and set it as attribute
-        # self.elastic_centroid = sec.elastic_centroid()
-
-        # Compute plastic centroid of section and set it as attribute
-        self.plastic_centroid = self.plastic_centroid()
-
         # Set boundaries of section (minx, miny, maxx, maxy)
         self.bounds = self.polygon.bounds
 
+    # @property
     # def elastic_centroid(x, y, xr, yr, dia, Ec=30*10**6, Es=200*10**6):
     #     '''Compute elastic centroid of a reinforced concrete section.
 
@@ -174,6 +169,7 @@ class Section:
 
     #     return xel, yel
 
+    @property
     def plastic_centroid(self):
         ''' Return plastic centroid of a reinforced concrete section.'''
 
@@ -255,28 +251,20 @@ class Section:
                 # --- SECTION IS IN FULL TENSION ---
                 print('# --- SECTION IS IN FULL TENSION ---')
 
-                # Set compression block to empty polygon
-                compr_block = Polygon()
-
-                # No concrete in compression => does not contribute to capacity
-                Fc, Mc = 0, 0
-
-                # Find distance from each rebar to neutral axis
-                rd = sec.distance_to_na(self.rebars, neutral_axis)
+                Fc, Mc, rd, failure_dist, compr_block = sec.full_tension(
+                    self.rebars, neutral_axis)
 
                 # Section is in full tension, use eps_su as failure strain
                 # TODO Should be input
                 eps_failure = 0.0217
-
-                # Set dist to failure strain point as dist to rebar furthest from na
-                failure_dist = abs(max(rd, key=abs))
 
             elif not compr_zone.is_empty and not tension_zone.is_empty:
                 # --- SECTION IS IN PARTIAL COMPRESSION AND PARTIAL TENSION ---
                 print('# --- SECTION IS IN PARTIAL COMPRESSION AND PARTIAL TENSION ---')
 
                 # Find extreme compression point and dist from that to neutral axis
-                p_max, c_max = gm.furthest_vertex_from_line(compr_zone, neutral_axis)
+                p_max, c_max = gm.furthest_vertex_from_line(
+                    compr_zone, neutral_axis)
 
                 # Split compression zone into compression block and remainder
                 compr_block, _ = sec.split_compression_zone(compr_zone, neutral_axis,
@@ -292,7 +280,8 @@ class Section:
                 arm = y_plastic_centroid - cy
 
                 # Find force and moment contributions to capacity from the concrete
-                Fc, Mc = sec.concrete_contributions(Ac, arm, self.fcd, self.alpha_cc)
+                Fc, Mc = sec.concrete_contributions(
+                    Ac, arm, self.fcd, self.alpha_cc)
 
                 # Create array w. True for rebars in tension zone, False otherwise
                 rebars_tension = gm.points_in_polygon(self.rebars, tension_zone)

@@ -253,6 +253,55 @@ def full_tension(rebars, neutral_axis):
     return Fc, Mc, rd, failure_dist, compr_block
 
 
+def mixed_compr_tension(compr_zone, tension_zone, neutral_axis, section):
+    '''Return ...
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+    # Find extreme compression point and dist from that to neutral axis
+    p_max, c_max = gm.furthest_vertex_from_line(compr_zone, neutral_axis)
+
+    # Split compression zone into compression block and remainder
+    compr_block, _ = split_compression_zone(compr_zone, neutral_axis,
+                                            section.area, lambda_c=0.8)
+
+    # Find area of concrete in compression
+    Ac = compr_block.area
+
+    # Find centroid height (y-coord) of compr. zone
+    cy = compr_block.centroid.y
+
+    # Get y-coordinate of the plastic centroid of the section
+    y_plastic_centroid = section.plastic_centroid[1]
+
+    # Dist btw. plastic center of gross section to centroid of compr block
+    arm = y_plastic_centroid - cy
+
+    # Find force and moment contributions to capacity from the concrete
+    Fc, Mc = concrete_contributions(Ac, arm, section.fcd, section.alpha_cc)
+
+    # Create array w. True for rebars in tension zone, False otherwise
+    rebars_tension = gm.points_in_polygon(section.rebars, tension_zone)
+
+    # Find rebars in compression by inverting boolean tension array
+    rebars_compr = np.invert(rebars_tension)
+
+    # Find distance from each rebar to neutral axis
+    rd = distance_to_na(section.rebars, neutral_axis)
+
+    # Make distance negative for rebars in compression
+    rd[rebars_compr] *= -1
+
+    # Compr. and tension, use c_max as dist ( with eps_cu3 as failure strain)
+    failure_dist = c_max
+
+    return Fc, Mc, rd, failure_dist, compr_block
+
+
 def concrete_contributions(A_compression, lever_arm, fcd, alpha_cc=1.0):
     '''
     Return the contribution from concrete to force and moment capacity of the

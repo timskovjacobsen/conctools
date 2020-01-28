@@ -21,14 +21,14 @@ from sectiongen import neutral_axis_locs
 import section as sec
 
 
-# def pløt_soiction(polygon, na, compr_zone, compr_block):
+def plot_section(polygon, na, compr_zone, compr_block):
 
-#     plt.plot(*polygon.exterior.xy)
-#     x1, y1, x2, y2 = na.bounds
-#     plt.plot([x1, x2], [y1, y2])
-#     plt.plot(*compr_zone.exterior.xy)
-#     plt.plot(*compr_block.exterior.xy)
-#     plt.show()
+    plt.plot(*polygon.exterior.xy)
+    x1, y1, x2, y2 = na.bounds
+    plt.plot([x1, x2], [y1, y2])
+    plt.plot(*compr_zone.exterior.xy)
+    plt.plot(*compr_block.exterior.xy)
+    plt.show()
 
 
 class Section:
@@ -106,72 +106,73 @@ class Section:
         # Set boundaries of section (minx, miny, maxx, maxy)
         self.bounds = self.polygon.bounds
 
-    def elastic_centroid(x, y, xr, yr, dia, Ec=30*10**6, Es=200*10**6):
-        '''Compute elastic centroid of a reinforced concrete section.
+    # def elastic_centroid(x, y, xr, yr, dia, Ec=30*10**6, Es=200*10**6):
+    #     '''Compute elastic centroid of a reinforced concrete section.
 
-        Return elastic centroid of a transformed reinforced concrete sections.
-        Rebars located outside of the concrete defined by x and y is assumed to be
-        surrounded by ineffective/cracked concrete.
+    #     Return elastic centroid of a transformed reinforced concrete sections.
+    #     Rebars located outside of the concrete defined by x and y is assumed to be
+    #     surrounded by ineffective/cracked concrete.
 
-        Args:
-            par1 (type) :
-            dia (list) : Rebars diameters
+    #     Args:
+    #         par1 (type) :
+    #         dia (list) : Rebars diameters
 
-        Returns:
-            ret1 (type) :
-        TODO REWRITE ENTIRE METHOD (PREVIOUSLY A FUNCTION, BUT NOT DONE WELL)
-        '''
+    #     Returns:
+    #         ret1 (type) :
+    #     TODO REWRITE ENTIRE METHOD (PREVIOUSLY A FUNCTION, BUT NOT DONE WELL)
+    #     '''
 
-        # Stiffness ratio
-        n = Es / Ec
+    #     # Stiffness ratio
+    #     n = Es / Ec
 
-        # Number of rebars
-        nb = len(dia)
+    #     # Number of rebars
+    #     nb = len(dia)
 
-        # Rebars that are surrounded by ineffective/cracked concrete will have a
-        # transformed stiffness of 'n', while rebars in the compression zone
-        # has 'n-1'. This is due to the fact that rebars in compression have displaced
-        # concrete that would have had stiffness of 'Ec'.
+    #     # Rebars that are surrounded by ineffective/cracked concrete will have a
+    #     # transformed stiffness of 'n', while rebars in the compression zone
+    #     # has 'n-1'. This is due to the fact that rebars in compression have displaced
+    #     # concrete that would have had stiffness of 'Ec'.
 
-        # Evaluate if rebars are inside or outside stress block (returns list with 'True' or 'False')
-        rebar_eval = rebars_in_stress_block(x, y, xr, yr)
+    #     # Evaluate if rebars are inside or outside stress block
+    #       (returns list with 'True' or 'False')
+    #     rebar_eval = rebars_in_stress_block(x, y, xr, yr)
 
-        # Extract rebars in compression
-        dia_comp = [dia[i] for i in range(nb) if rebar_eval[i]]
-        xr_comp = [xr[i] for i in range(nb) if rebar_eval[i]]
-        yr_comp = [yr[i] for i in range(nb) if rebar_eval[i]]
+    #     # Extract rebars in compression
+    #     dia_comp = [dia[i] for i in range(nb) if rebar_eval[i]]
+    #     xr_comp = [xr[i] for i in range(nb) if rebar_eval[i]]
+    #     yr_comp = [yr[i] for i in range(nb) if rebar_eval[i]]
 
-        # Extract rebars in tension
-        dia_tens = [dia[i] for i in range(nb) if not rebar_eval[i]]
-        xr_tens = [xr[i] for i in range(nb) if not rebar_eval[i]]
-        yr_tens = [yr[i] for i in range(nb) if not rebar_eval[i]]
+    #     # Extract rebars in tension
+    #     dia_tens = [dia[i] for i in range(nb) if not rebar_eval[i]]
+    #     xr_tens = [xr[i] for i in range(nb) if not rebar_eval[i]]
+    #     yr_tens = [yr[i] for i in range(nb) if not rebar_eval[i]]
 
-        # Compute centroid and area of concrete polygon
-        xc, yc, Ac = geometry.polygon_centroid(x, y, return_area=True)
+    #     # Compute centroid and area of concrete polygon
+    #     xc, yc, Ac = geometry.polygon_centroid(x, y, return_area=True)
 
-        # Compute total transformed area of section
-        A_comp = sum([n * pi*d**2/4 for d in dia_tens])
-        A_tens = sum([(n-1) * pi*d**2/4 for d in dia_comp])
-        A = Ac + A_comp + A_tens
+    #     # Compute total transformed area of section
+    #     A_comp = sum([n * pi*d**2/4 for d in dia_tens])
+    #     A_tens = sum([(n-1) * pi*d**2/4 for d in dia_comp])
+    #     A = Ac + A_comp + A_tens
 
-        # Compute total 'moment area', i.e. area times moment arm
-        Acx = Ac * abs(xc)
-        Asx_comp = sum([(n-1) * pi*dia_comp[i]**2/4 * xr_comp[i]
-                        for i in range(len(dia_comp))])
-        Asx_tens = sum([n * pi*dia_tens[i]**2/4 * xr_tens[i]
-                        for i in range(len(dia_tens))])
+    #     # Compute total 'moment area', i.e. area times moment arm
+    #     Acx = Ac * abs(xc)
+    #     Asx_comp = sum([(n-1) * pi*dia_comp[i]**2/4 * xr_comp[i]
+    #                     for i in range(len(dia_comp))])
+    #     Asx_tens = sum([n * pi*dia_tens[i]**2/4 * xr_tens[i]
+    #                     for i in range(len(dia_tens))])
 
-        Acy = Ac * abs(yc)
-        Asy_comp = sum([(n-1) * pi*dia_comp[i]**2/4 * yr_comp[i]
-                        for i in range(len(dia_comp))])
-        Asy_tens = sum([n * pi*dia_tens[i]**2/4 * yr_tens[i]
-                        for i in range(len(dia_tens))])
+    #     Acy = Ac * abs(yc)
+    #     Asy_comp = sum([(n-1) * pi*dia_comp[i]**2/4 * yr_comp[i]
+    #                     for i in range(len(dia_comp))])
+    #     Asy_tens = sum([n * pi*dia_tens[i]**2/4 * yr_tens[i]
+    #                     for i in range(len(dia_tens))])
 
-        # Compute x- and y-coordinate of elastic centroid for transformed section
-        xel = (Acx + Asx_comp + Asx_tens) / A
-        yel = (Acy + Asy_comp + Asy_tens) / A
+    #     # Compute x- and y-coordinate of elastic centroid for transformed section
+    #     xel = (Acx + Asx_comp + Asx_tens) / A
+    #     yel = (Acy + Asy_comp + Asy_tens) / A
 
-        return xel, yel
+    #     return xel, yel
 
     def plastic_centroid(self):
         ''' Return plastic centroid of a reinforced concrete section.'''
@@ -217,12 +218,13 @@ class Section:
             # Generate neutral axis location across the section
             neutral_axis_locations = neutral_axis_locs((miny-2000, maxy+2000),
                                                        n_locations,
-                                                       traverse_upwards=False)
+                                                       traverse_upwards=True)
 
         # Get y-coordinate of the plastic centroid of the section
         y_plastic_centroid = self.plastic_centroid[1]
 
         NN, MM = [], []
+        y_na_list = []
 
         # Loop over neutral axis locations
         for y_na in neutral_axis_locations:
@@ -235,46 +237,19 @@ class Section:
             # Find the cross section state (pure compression, pure tension or mix)
             compr_zone, tension_zone = sec.find_compr_tension_zones(self.polygon,
                                                                     neutral_axis,
-                                                                    compr_above=False)
+                                                                    compr_above=True)
 
             # Determine state of the section and perform computations accordingly
             if not compr_zone.is_empty and tension_zone.is_empty:
                 # --- SECTION IN IN FULL COMPRESSION ---
                 print('# --- SECTION IN IN FULL COMPRESSION ---')
 
-                # Split compression zone into compression block and remainder
-                compr_block, _ = sec.split_compression_zone(compr_zone, neutral_axis,
-                                                            self.area, lambda_c=0.8)
+                # Perform full compression analysis and get relevant results
+                Fc, Mc, rd, failure_dist, compr_block = sec.full_compression(
+                    compr_zone, neutral_axis, self)
 
-                # Set area of concrete in compression to full cross section area
-                Ac = compr_block.area
-
-                # Find centroid height (y-coord) of compr. zone
-                cy = list(compr_block.centroid.coords)[0][1]
-
-                # Dist btw. plastic center of gross section to centr of compr block
-                arm = y_plastic_centroid - cy
-
-                # Find force and moment contributions to capacity from the concrete
-                Fc, Mc = sec.concrete_contributions(Ac, arm, self.fcd, self.alpha_cc)
-
-                # Find distance from each rebar to neutral axis
-                rd = sec.points_distance_to_na(points=self.rebars, angle=0,
-                                               y_intersect=y_na)
-
-                # Make all rebar distances negative, since there's full compression
-                rd *= -1
-
-                # Find extreme compression point and dist from that to neutral axis
-                p_max, c_max = gm.furthest_vertex_from_line(compr_zone, neutral_axis)
-                print(p_max)
-                print(f'c_max = {c_max}')
-
-                # ----- Find rebar strain ------
-                # Full compr. => use c_max as dist and eps_c2 as failure strain
-                # TODO Should be input
-                failure_dist, eps_failure = c_max, 0.0035
-                print(f'strain = {eps_failure * rd / failure_dist}')
+                # Set failure strain for pure compression case
+                eps_failure = 0.0035
 
             elif compr_zone.is_empty and not tension_zone.is_empty:
                 # --- SECTION IS IN FULL TENSION ---
@@ -287,8 +262,7 @@ class Section:
                 Fc, Mc = 0, 0
 
                 # Find distance from each rebar to neutral axis
-                rd = sec.points_distance_to_na(points=self.rebars, angle=0,
-                                               y_intersect=y_na)
+                rd = sec.distance_to_na(self.rebars, neutral_axis)
 
                 # Section is in full tension, use eps_su as failure strain
                 # TODO Should be input
@@ -327,8 +301,7 @@ class Section:
                 rebars_compr = np.invert(rebars_tension)
 
                 # Find distance from each rebar to neutral axis
-                rd = sec.points_distance_to_na(points=self.rebars, angle=0,
-                                               y_intersect=y_na)
+                rd = sec.distance_to_na(self.rebars, neutral_axis)
 
                 # Make distance negative for rebars in compression
                 rd[rebars_compr] *= -1
@@ -336,12 +309,24 @@ class Section:
                 # Compr. and tension, use c_max as dist and eps_cu3 as failure strain
                 failure_dist, eps_failure = c_max, 0.0035
 
-            print(f'compr_block = {compr_block}')
-            print(f'compr_zone dddd= {compr_zone}')
-            print(f'tension_zone = {tension_zone}')
+            # print(f'compr_block = {compr_block}')
+            # print(f'compr_zone dddd= {compr_zone}')
+            # print(f'tension_zone = {tension_zone}')
             # print(f'Ac = {Ac}')
+            print(f'A_compr_block = {compr_block.area}')
             print(f'Fc = {Fc}')
             print(f'Mc = {Mc}')
+
+            # # PLOTTING CODE FOR VISUAL TEST
+            # # TODO IMPLEMENT A WAY TO PLOT THIS EASIER WITHOUT MESSING WITH THE FUNCTION CODE!
+            # plt.plot(*self.polygon.exterior.xy)
+            # # x1, y1, x2, y2 = na_y.bounds
+            # # plt.plot([x1, x2], [y1, y2])
+            # plt.plot(*compr_zone.exterior.xy)
+            # plt.plot(*compr_block.exterior.xy, '--', color='magenta' ,lw=5)
+            # plt.axis('equal')
+            # plt.show()
+            # # PLOTTING CODE FOR VISUAL TEST
 
             # ----- Compute rebar strains ------
             rebar_strain = sec.rebar_strain(rd, failure_dist, eps_failure)
@@ -360,8 +345,8 @@ class Section:
 
             # ----- Compute rebar moment -----
             # rebar_moment = abs(rebar_force) * abs((self.ys - y_plastic_centroid)) / 1000
-            rebar_moment = (rebar_force) * (y_plastic_centroid - self.ys) / 1000
-            print(f'rebar moment arm = {(y_plastic_centroid -self.ys)}')
+            rebar_moment = rebar_force * (y_plastic_centroid - self.ys) / 1000
+            print(f'rebar moment arm = {(y_plastic_centroid - self.ys)}')
             print(f'rebar_moment = {rebar_moment}')
 
             # ----- Compute total rebar force and moment
@@ -371,17 +356,17 @@ class Section:
             print(f'Ms = {Ms}')
 
             # ----- Compute total resisting force and moment (capacities)
-            N = (Fs + Fc)
-            M = (Mc + Ms)
+            N = Fs + Fc
+            M = Mc + Ms
             print(f'N = {N}')
             print(f'M = {M}')
             NN.append(N)
             MM.append(M)
+            y_na_list.append(y_na)
 
         # TODO Return dict of all relevant info for each na location, otherwise
-        #      it's hard to track each calc. 
+        #      it's hard to track each calc.
         return NN, MM
-        # return NN, MM
 
     def plot(self):
         '''

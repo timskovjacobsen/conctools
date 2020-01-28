@@ -204,7 +204,10 @@ class Section:
             an auto generated sequence spanning the entire section and extending
             beyond both ends.
 
-        TODO Clean up to smaller functions.
+        Todo
+        ----
+        * Return dict of all relevant info for each na location, otherwise
+          it's hard to track each calc.
         '''
         # Get y-coordinate boundaries for section
         _, miny, _, maxy = self.bounds
@@ -215,9 +218,6 @@ class Section:
             neutral_axis_locations = neutral_axis_locs((miny-2000, maxy+2000),
                                                        n_locations,
                                                        traverse_upwards=True)
-
-        # Get y-coordinate of the plastic centroid of the section
-        y_plastic_centroid = self.plastic_centroid[1]
 
         NN, MM = [], []
         y_na_list = []
@@ -242,7 +242,7 @@ class Section:
 
                 # Perform full compression analysis and get relevant results
                 Fc, Mc, rd, failure_dist, compr_block = sec.full_compression(
-                    compr_zone, neutral_axis, self)
+                    self, compr_zone, neutral_axis)
 
                 # Set failure strain for pure compression case
                 eps_failure = 0.0035
@@ -262,41 +262,10 @@ class Section:
                 # --- SECTION IS IN PARTIAL COMPRESSION AND PARTIAL TENSION ---
                 print('# --- SECTION IS IN PARTIAL COMPRESSION AND PARTIAL TENSION ---')
 
-                # Find extreme compression point and dist from that to neutral axis
-                p_max, c_max = gm.furthest_vertex_from_line(
-                    compr_zone, neutral_axis)
+                Fc, Mc, rd, failure_dist, compr_block = sec.mixed_compr_tension(
+                    self, compr_zone, tension_zone, neutral_axis)
 
-                # Split compression zone into compression block and remainder
-                compr_block, _ = sec.split_compression_zone(compr_zone, neutral_axis,
-                                                            self.area, lambda_c=0.8)
-
-                # Find area of concrete in compression
-                Ac = compr_block.area
-
-                # Find centroid height (y-coord) of compr. zone
-                cy = compr_block.centroid.y
-
-                # Dist btw. plastic center of gross section to centr of compr block
-                arm = y_plastic_centroid - cy
-
-                # Find force and moment contributions to capacity from the concrete
-                Fc, Mc = sec.concrete_contributions(
-                    Ac, arm, self.fcd, self.alpha_cc)
-
-                # Create array w. True for rebars in tension zone, False otherwise
-                rebars_tension = gm.points_in_polygon(self.rebars, tension_zone)
-
-                # Find rebars in compression by inverting boolean tension array
-                rebars_compr = np.invert(rebars_tension)
-
-                # Find distance from each rebar to neutral axis
-                rd = sec.distance_to_na(self.rebars, neutral_axis)
-
-                # Make distance negative for rebars in compression
-                rd[rebars_compr] *= -1
-
-                # Compr. and tension, use c_max as dist and eps_cu3 as failure strain
-                failure_dist, eps_failure = c_max, 0.0035
+                eps_failure = 0.0035
 
             # print(f'compr_block = {compr_block}')
             # print(f'compr_zone dddd= {compr_zone}')
@@ -306,43 +275,8 @@ class Section:
             print(f'Fc = {Fc}')
             print(f'Mc = {Mc}')
 
-            # # PLOTTING CODE FOR VISUAL TEST
-            # # TODO IMPLEMENT A WAY TO PLOT THIS EASIER WITHOUT MESSING WITH THE FUNCTION CODE!
-            # plt.plot(*self.polygon.exterior.xy)
-            # # x1, y1, x2, y2 = na_y.bounds
-            # # plt.plot([x1, x2], [y1, y2])
-            # plt.plot(*compr_zone.exterior.xy)
-            # plt.plot(*compr_block.exterior.xy, '--', color='magenta' ,lw=5)
-            # plt.axis('equal')
-            # plt.show()
-            # # PLOTTING CODE FOR VISUAL TEST
-
-            # ----- Compute rebar strains ------
-            rebar_strain = sec.rebar_strain(rd, failure_dist, eps_failure)
-            print(f'rebar_strain = {rebar_strain}')
-
-            # ----- Compute rebar stresses ------
-            Es = 200000     # TODO Input
-            rebar_stress = rebar_strain * Es
-            rebar_stress = np.clip(rebar_stress, -self.fyd, self.fyd)
-            print(f'rebar_stress = {rebar_stress}')
-
-            # ----- Compute rebar force -----
-            As = np.pi * self.ds**2 / 4
-            rebar_force = rebar_stress * As / 1000
-            print(f'rebar_force = {rebar_force}')
-
-            # ----- Compute rebar moment -----
-            # rebar_moment = abs(rebar_force) * abs((self.ys - y_plastic_centroid)) / 1000
-            rebar_moment = rebar_force * (y_plastic_centroid - self.ys) / 1000
-            print(f'rebar moment arm = {(y_plastic_centroid - self.ys)}')
-            print(f'rebar_moment = {rebar_moment}')
-
-            # ----- Compute total rebar force and moment
-            Fs = np.sum(rebar_force)
-            Ms = np.sum(rebar_moment)
-            print(f'Fs = {Fs}')
-            print(f'Ms = {Ms}')
+            Fs, Ms, strains, stresses, forces, arms, moments = sec.steel_contribution(
+                self, rd, failure_dist, eps_failure, Es=200000)
 
             # ----- Compute total resisting force and moment (capacities)
             N = Fs + Fc
@@ -353,8 +287,6 @@ class Section:
             MM.append(M)
             y_na_list.append(y_na)
 
-        # TODO Return dict of all relevant info for each na location, otherwise
-        #      it's hard to track each calc.
         return NN, MM
 
     def plot(self):

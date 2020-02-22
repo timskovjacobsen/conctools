@@ -222,7 +222,7 @@ def full_compression(section, compr_zone, neutral_axis):
     # Make all rebar distances negative, since there's full compression
     rd *= -1
 
-    # Find extreme compression point and dist from that to neutral axis
+    # Find dist from extreme compression point to neutral axis
     _, failure_dist = gm.furthest_vertex_from_line(compr_zone, neutral_axis)
 
     return Fc, Mc, rd, failure_dist, compr_block
@@ -296,10 +296,14 @@ def mixed_compr_tension(section, compr_zone, tension_zone, neutral_axis):
     # Make distance negative for rebars in compression
     rd[rebars_compr] *= -1
 
-    # Compr. and tension, use c_max as dist ( with eps_cu3 as failure strain)
+    # Compr. and tension, use c_max as dist (with eps_cu3 as failure strain)
     failure_dist = c_max
 
     return Fc, Mc, rd, failure_dist, compr_block
+
+
+def find_section_state():
+    pass
 
 
 def concrete_contributions(A_compression, lever_arm, fcd, alpha_cc=1.0):
@@ -331,8 +335,6 @@ def concrete_contributions(A_compression, lever_arm, fcd, alpha_cc=1.0):
 
     Assumptions:
         * Centroid of uncracked cross section is located at (0, 0)
-
-    TODO Raise error is no split happens (clearly there must be a split)
     '''
 
     # Calculate force contribution from concrete (negative in compression)
@@ -345,6 +347,7 @@ def concrete_contributions(A_compression, lever_arm, fcd, alpha_cc=1.0):
 
 
 def steel_contribution(section, rd, failure_dist, eps_failure, Es=200000):
+# def steel_contribution(section, neutral_axis, eps_failure, Es=200000):
     '''Return ...
 
     Parameters
@@ -359,36 +362,46 @@ def steel_contribution(section, rd, failure_dist, eps_failure, Es=200000):
       moments as these are often not directly needed in further
       calculations, but might be valuable for tables, plotting etc.
     '''
-    # ----- Compute strain in each rebar ------
+    # Compute strain in each rebar
     strains = rebar_strain(rd, failure_dist, eps_failure)
+    # ys = section.ys
+    # strains = np.array([strain(section, neutral_axis, y, eps_failure) for y in ys])
     print(f'rebar_strains = {strains}')
 
-    # ----- Compute rebar stresses ------
+    # Compute rebar stresses
     stresses = strains * Es
     stresses = np.clip(stresses, -section.fyd, section.fyd)
     print(f'rebar_stresses = {stresses}')
 
-    # ----- Compute rebar force -----
-    As = np.pi * section.ds**2 / 4
-    forces = stresses * As / 1000
+    # Compute rebar force
+    forces = stresses * section.As / 1000
     print(f'rebar_forces = {forces}')
 
     # Get y-coordinate of plastic centroid of section
     y_plastic_centroid = section.plastic_centroid[1]
 
-    # ----- Compute rebar moment -----
-    arms = (y_plastic_centroid - section.ys)
+    # Compute rebar moment
+    arms = y_plastic_centroid - section.ys
     moments = forces * arms / 1000
     print(f'rebar moment arms = {arms}')
     print(f'rebar_moments = {moments}')
 
-    # ----- Compute total rebar force and moment
+    # Compute total rebar force and moment
     Fs = np.sum(forces)
     Ms = np.sum(moments)
     print(f'Fs = {Fs}')
     print(f'Ms = {Ms}')
 
-    return Fs, Ms, strains, stresses, forces, arms, moments
+    # Create dict of metadata from calculation
+    rebar_metadata = {
+        'strains': strains,
+        'stresses': stresses,
+        'forces': forces,
+        'arms': arms,
+        'moments': moments,
+    }
+
+    return Fs, Ms, rebar_metadata
 
 
 def distance_to_na(points, neutral_axis):
@@ -410,54 +423,87 @@ def distance_to_na(points, neutral_axis):
     return np.array([neutral_axis.distance(point) for point in points])
 
 
-def na_to_max_strain_circle(radius, yn, rs):
+def strain(section, neutral_axis, y_seek=None, eps_c=0.00175, eps_cu=0.0035,
+           compr_above=True):
+    '''Return the strain at a location for a given cross section state.
+
+    section : shapely Polygon
+        Section geometry.
+    neutral axis : shapely LineString
+        Line consisting of exactly two points defining the neutral axis.
+    y_seek : number, optional
+        y-coordinate at which strain is desired. Defaults to `None`, and thereby using
+        the point in the cross section that has the maximum strain.
+    eps_c : number, optional
+        Failure strain of concrete when section is subjected to uniform
+        compression.
+        Defaults to the value embedded in `section`.
+    eps_cu : number, optional
+        Failure strain of concrete under combined effects.
+        Defaults to the value embedded in `section`.
+    compr_above : bool, optional
+        Whether compression is considered to be above or below the neutral
+        axis. Defaults to `True`.
+
+    Returns
+    -------
+    number
+        The strain at the y-coordinate `y_seek`.
+
+    Notes
+    -----
+    When the section is in full tension, the strain is taken as 0.0035 as for
+    case with a mixed compression/tension section. In reality the failure
+    strain will be the steel tensile failure strain, but since the rebars are
+    sure to have yielded at a strain of 0.0035 the forces (and thereby the
+    capacity) will be the same.
+
+    TODO Setup tests!
     '''
 
-    TODO Assumes circular section. Stuff in this module should be universal!
-    '''
+    # Set failure strains to those of `section` if they were not inputted
+    if not eps_c:
+        eps_c = section.eps_c
+    if not eps_cu:
+        eps_cu = section.eps_cu
 
-    # Initiate array for storing dist from neutral axis to extreme strain point
-    c_max = np.zeros(len(yn))
+    # Extract the two y-coordinates of the netural axis
+    ys = [sublist[1] for sublist in list(neutral_axis.coords)]
 
-    # Get indices corresponding to pure tension
-    idx_empty = np.where(yn >= radius)
+    # Check if neutral axis is horizontal, if not raise an error
+    if not ys[0] == ys[1]:
+        raise NotImplementedError(f'''
+    Currently this function only supports cases with horizontal neutral axis.
+    The inputted neutral axis has y1={ys[0]} and y2={ys[1]}.''')
 
-    # Take dist from the neutral axis to rebar furthest away (strain will be eps_su
-    # there)
-    # REVIEW NEED abs(max(...))?
-    c_max[idx_empty] = [max(rebars_at_each_na) for rebars_at_each_na in rs[idx_empty]]
+    # Get upper and lower bound of cross section
+    _, miny, _, maxy = section.bounds
 
-    # Get indices where at least some compression is present
-    idx_other = np.where(yn < radius)
+    # Set up coordinates for linear interpolation
+    x1 = ys[0]
+    y1 = 0
+    x2 = (miny + maxy) / 2
+    y2 = eps_c
 
-    # Take distance from neutral axis to extreme concrete compression fiber
-    # (strain will be eps_cu there)
-    c_max[idx_other] = radius - yn[idx_other]
+    # If `y_seek` was not input, use the y-coord of max strain in the section
+    if not y_seek:
+        y_seek = maxy if compr_above else miny
 
-    return c_max
+    # Calculate strain at desired point by linear interpolation
+    # Note: `y_seek` is technically an x-coordinate in the interpolation
+    try:
+        eps = (y2 - y1) / (x2 - x1) * (y_seek - x1) + y1
+    except ZeroDivisionError:
+        eps = 0
 
+    # Set the y-coord. at which the section enters full compr. state (top or bottom)
+    y_full_compression = miny if compr_above else maxy
 
-def rebar_strain_circle(r, yn, rs, ys, c_max, eps_cu3=0.0035, eps_c2=0.002,
-                        eps_su=0.025):
-
-    eps_s = np.empty([len(rs), len(ys)])
-    idx_empty = np.where(yn >= r)
-
-    # Calculate {eps_su * rs_i / c_max_i} for all rebars at each na location
-    eps_s[idx_empty] = [eps_su * rs[idx_empty][i] / c_max[i]
-                        for i in range(len(rs[idx_empty]))]  # NOTE Will be an array
-
-    # Calculate
-    idx_full = np.where(yn <= -r)
-    if idx_full[0].size != 0:
-        eps_s[idx_full] = [eps_c2 * rs[idx_full][i] / c_max[i]
-                           for i in range(len(rs[idx_full]))]  # NOTE Will be an array
-
-    idx_partial = np.where((yn > -r) & (yn < r))
-    eps_s[idx_partial] = [eps_cu3 * rs[idx_partial][i] / c_max[i]
-                          for i in range(len(rs[idx_partial]))]  # NOTE Will be an array
-
-    return eps_s
+    if compr_above:
+        # Return computed strain if section is in full compression, eps_cu otherwise
+        return eps if x1 < y_full_compression else 0.0035
+    else:
+        return eps if x1 > y_full_compression else 0.0035
 
 
 def rebar_strain(rebar_dist, failure_dist, eps_failure):
@@ -474,36 +520,6 @@ def rebar_strain(rebar_dist, failure_dist, eps_failure):
         eps_cu=0.0035, eps_c2=0.002, eps_su=0.025
     '''
     return eps_failure * rebar_dist / failure_dist
-
-
-# def rebar_stress(eps_rebars, fyd=500/1.15, Es=200000):
-
-#     sigma_s = np.empty(eps_rebars.shape)
-
-#     for idx, na_location in enumerate(eps_rebars):
-#         sigma_s[idx] = [eps*Es if abs(eps*Es) < fyd else fyd for eps in na_location]
-
-#     return sigma_s
-
-
-# def rebar_force(sigma_s, As):
-#     '''
-#     Return the total forces generated by all rebars in a cross section given failure
-#     states with specific neutral axis locations.
-#     '''
-#     return sigma_s * As
-
-
-# def rebar_moment(rebar_forces, ys):
-#     return rebar_forces * ys
-
-
-# def totals(array_of_arrays):
-#     '''
-#     Return an array of the sum of each sub array.
-#     E.g. the sum of all forces for each considered location of the neutral axis.
-#     '''
-#     return np.array([np.sum(sub_array) for sub_array in array_of_arrays])
 
 
 if __name__ == '__main__':

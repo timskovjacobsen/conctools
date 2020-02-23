@@ -28,7 +28,7 @@ def rebar_coordinates(r_rebars, n_rebars):
     return r_rebars * np.cos(theta), r_rebars * np.sin(theta)
 
 
-def _neutral_axis_locs(bounds, n_locations, traverse_upwards=True):
+def neutral_axis_locs(bounds, n_locations, traverse_upwards=True):
     '''
     Parameters
     ----------

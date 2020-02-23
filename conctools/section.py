@@ -9,6 +9,8 @@ Abbreviations used in comments
 Todo
 TODO: fck > 50 MPa not implemented. Either implement or raise error if
       it is input.
+TODO Create alternative constructor for polygons and circles in the same class
+     `Section`.
 
 """
 
@@ -22,7 +24,7 @@ import matplotlib.pyplot as plt
 # Project specific imports
 import conctools._geometry as gm
 import conctools._section_utils as su
-from conctools.sectiongen import _neutral_axis_locs
+from conctools._sectiongen import neutral_axis_locs
 
 
 class Section:
@@ -183,9 +185,9 @@ class Section:
                 min_na = miny-1000 if compr_above else miny
 
                 # Generate neutral axis location across the section
-                neutralaxis_locations = _neutral_axis_locs((min_na, max_na),
-                                                           n_locations,
-                                                           traverse_upwards=True)
+                neutralaxis_locations = neutral_axis_locs((min_na, max_na),
+                                                          n_locations,
+                                                          traverse_upwards=True)
             else:
                 # Set neutral axis locations to what was specifically inputted
                 neutralaxis_locations = neutral_axis_locations

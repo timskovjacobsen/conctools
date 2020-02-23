@@ -50,8 +50,7 @@ def test_evaluate_points_negative():
     actual = gm.evaluate_points(x, y, angle, y_intersect)
 
     # ----- Verify -----
-    assert_array_almost_equal(actural, desired)
-
+    assert_array_almost_equal(actual, desired)
 
 
 def test_points_in_polygon_rectangle():

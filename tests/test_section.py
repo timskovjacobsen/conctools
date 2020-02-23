@@ -9,6 +9,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 from shapely.geometry import Point
+from shapely.geometry import LineString
 from shapely.geometry import Polygon
 from shapely.geometry import MultiPolygon
 
@@ -38,7 +39,7 @@ def rectangular_section():
     return x, y, xs, ys
 
 
-def test_points_distance_to_na(rectangular_section):
+def test_distance_to_na(rectangular_section):
 
     # ----- Setup --------
     x, y, xs, ys = rectangular_section
@@ -46,14 +47,13 @@ def test_points_distance_to_na(rectangular_section):
     # Create a shapely Point for each rebar
     rebars = [Point(xi, yi) for xi, yi in zip(xs, ys)]
 
-    angle = 0
-    y_intersect = 300
+    # Create neutral axis
+    neutral_axis = LineString([(-10000, 300), (10000, 300)])
 
     desired = np.array([260, 260, 260, 160, 160])
 
     # ----- Exercise -----
-    actual = sec.points_distance_to_na(points=rebars, angle=angle,
-                                       y_intersect=y_intersect)
+    actual = sec.distance_to_na(rebars, neutral_axis)
 
     # ----- Verify -------
     assert_array_almost_equal(actual, desired)
@@ -68,31 +68,29 @@ def test_points_distance_to_na(rectangular_section):
 
 #     # Neutral axis horizontal and in
 # ])
-def test_find_section_state(rectangular_section):
-    # ----- Setup -------
-    x, y, *_ = rectangular_section
+# def find_compr_tension_zones(rectangular_section):
+#     # ----- Setup -------
+#     x, y, *_ = rectangular_section
 
-    # Create rectangle as shapely Polygon
-    rectangle = Polygon([(xi, yi) for xi, yi in zip(x, y)])
+#     # Create rectangle as shapely Polygon
+#     rectangle = Polygon([(xi, yi) for xi, yi in zip(x, y)])
 
-    # Create neutral axis as shapely LineString
-    neutral_axis = gm.create_line(angle=0, y_intersect=600)
+#     # Create neutral axis as shapely LineString
+#     neutral_axis = gm.create_line(angle=0, y_intersect=600)
 
-    # Desired results
-    compression_zone = rectangle
-    tension_zone = Polygon()        # Empty Polygon
-    desired = (compression_zone, tension_zone)
+#     # Desired results
+#     compression_zone = rectangle
+#     tension_zone = Polygon()        # Empty Polygon
+#     desired = (compression_zone, tension_zone)
 
-    # ----- Exercise -----
-    actual = sec.find_section_state(rectangle, neutral_axis)
+#     # ----- Exercise -----
+#     actual = sec.find_section_state(rectangle, neutral_axis)
 
-    # ----- Verify -------
-    assert actual == desired
+#     # ----- Verify -------
+#     assert actual == desired
 
 
 @pytest.mark.parametrize('compr_zone, neutral_axis, A_gross, desired', [
-    # Compression zone is empty
-    (Polygon(), gm.create_line(angle=0, y_intersect=600), 125000, (None, None)),
 
     # Note: b x h =  250 x 500
     # Compression zone to be split by line
@@ -140,6 +138,29 @@ def test_split_compression_zone(compr_zone, neutral_axis, A_gross, desired):
     # Compare by shapely built-in method
     # FIXME Find out if this is actually a correct way to check if they are equal
     assert actual.equals(desired)
+
+
+# def test_split_compression_zone_with_empty_zone(compr_zone, neutral_axis, A_gross,
+#                                                 desired):
+#     # ----- Setup --------
+#     # Compression zone is empty
+
+#     compr_zone = Polygon()
+#     neutral_axis = gm.create_line(angle=0, y_intersect=600)
+#     A_gross = 125000
+
+#     # desired = # TODO How to test for exception?
+
+#     # ----- Exercise -----
+#     actual = sec.split_compression_zone(compr_zone, neutral_axis, A_gross)
+
+#     # Turn tuple of actual polygon(s) into collection (MultiPolygon object)
+#     actual = MultiPolygon(actual)
+
+#     # ----- Verify -------
+#     # Compare by shapely built-in method
+#     assert actual.equals(desired)
+
 
 
 # def test_concrete_contributions():

@@ -6,9 +6,8 @@ import os
 import sys
 
 # Third party imports
-import pytest
 import numpy as np
-from numpy.testing import assert_almost_equal, assert_array_almost_equal
+from numpy.testing import assert_array_almost_equal
 from shapely.geometry import Point
 from shapely.geometry import Polygon
 
@@ -19,7 +18,7 @@ root = os.path.abspath('..')
 sys.path.insert(0, f'{root}\\conctools\\conctools')
 
 # Import module to test
-import geometry as gm   # noqa: 402
+import _geometry as gm   # noqa: 402
 
 
 def test_evaluate_points_1():

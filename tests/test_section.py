@@ -1,17 +1,21 @@
+#!/usr/bin/env python
 
+"""
+Tests for `conctools` package.
 
-"""Tests for `section` module."""
+References used for tests
+    [1]: Reinforced Concrete Design to Eurocode 2, 7th Edition
+            Bill Mosley, John Bungey and Ray Hulse
+"""
 
-import os
+# Standard library imports
 import sys
+import os
 
+# Third party imports
 import pytest
-import numpy as np
+from numpy.testing import assert_almost_equal
 from numpy.testing import assert_array_almost_equal
-from shapely.geometry import Point
-from shapely.geometry import LineString
-from shapely.geometry import Polygon
-from shapely.geometry import MultiPolygon
 
 # Get project root directory
 root = os.path.abspath('.')
@@ -19,158 +23,100 @@ root = os.path.abspath('.')
 # Insert directory for module to test into path
 sys.path.insert(0, f'{root}\\conctools')
 
-# Import module to test
-import section as sec      # noqa: 402
-
-# Other project specific imports
-import geometry as gm      # noqa: 402
+# Import module to test and other project specific imports
+from section import Section       # noqa: 402
 
 
 @pytest.fixture
-def rectangular_section():
-    # Define coordinates for rectangular section
-    x = [0, 0, 250, 250]
-    y = [0, 500, 500, 0]
+def ref1_example_4_10():
+    '''
+    Fixture for example 4.10 in [1].
 
-    # Define rebar coordinates
-    xs = [40, 125, 210, 40, 210]
-    ys = [40, 40, 40, 460, 460]
+    The example comoutes the interaction diagram for a rectangular reinforced
+    concrete cross section.
+    '''
 
-    return x, y, xs, ys
+    x = [0, 0, 350, 350]
+    y = [0, -450, -450, 0]
 
+    fck = 25
+    fyk = 500
+    gamma_c = 1.5
+    gamma_s = 1.15
+    alpha_cc = 0.85
 
-def test_distance_to_na(rectangular_section):
+    # Rebar coordinates and diameters
+    xs = [60, 290, 60, 290]
+    ys = [-60, -60, -390, -390]
+    ds = [32, 32, 25, 25]
 
-    # ----- Setup --------
-    x, y, xs, ys = rectangular_section
+    # Neutral axis locations (Note: in the example it is measured from the top of
+    # the section, but here it's converted to be from the bottom)
+    na_locs = [-60, -158, -241, -390, -450, -9999]
 
-    # Create a shapely Point for each rebar
-    rebars = [Point(xi, yi) for xi, yi in zip(xs, ys)]
+    # Normal force and moment capacities
+    # Note: The values have small deviations compared to the textbook example
+    #       because of numerical roundoff in the book.
+    N = [189, -898, -1230, -2246, -2576, -3357]
+    M = [121, 275, 292, 192, 146, 0]
 
-    # Create neutral axis
-    neutral_axis = LineString([(-10000, 300), (10000, 300)])
-
-    desired = np.array([260, 260, 260, 160, 160])
-
-    # ----- Exercise -----
-    actual = sec.distance_to_na(rebars, neutral_axis)
-
-    # ----- Verify -------
-    assert_array_almost_equal(actual, desired)
-
-
-# @pytest.mark.parameterize('angle', 'y_intersect', 'desired' [
-#     # Neutral axis horizontal and above section
-#     (0, 600, ),
-
-#     # Neutral axis horizontal and in upper part of section
-#     (0, 400),
-
-#     # Neutral axis horizontal and in
-# ])
-# def find_compr_tension_zones(rectangular_section):
-#     # ----- Setup -------
-#     x, y, *_ = rectangular_section
-
-#     # Create rectangle as shapely Polygon
-#     rectangle = Polygon([(xi, yi) for xi, yi in zip(x, y)])
-
-#     # Create neutral axis as shapely LineString
-#     neutral_axis = gm.create_line(angle=0, y_intersect=600)
-
-#     # Desired results
-#     compression_zone = rectangle
-#     tension_zone = Polygon()        # Empty Polygon
-#     desired = (compression_zone, tension_zone)
-
-#     # ----- Exercise -----
-#     actual = sec.find_section_state(rectangle, neutral_axis)
-
-#     # ----- Verify -------
-#     assert actual == desired
+    return x, y, xs, ys, ds, fck, fyk, gamma_c, gamma_s, alpha_cc, na_locs, N, M
 
 
-@pytest.mark.parametrize('compr_zone, neutral_axis, A_gross, desired', [
-
-    # Note: b x h =  250 x 500
-    # Compression zone to be split by line
-    (
-        Polygon([(0, 300), (0, 500), (250, 500), (250, 300)]),
-        gm.create_line(angle=0, y_intersect=300),
-        125000,
-        (
-            # Desired (compression block and remaining block)
-            Polygon([(0, 340), (0, 500), (250, 500), (250, 340)]),
-            Polygon([(0, 300), (0, 340), (250, 340), (250, 300)])
-        )
-    ),
-
-    # Compression zone after attempted split occupies the entire cross section
-    # TODO
-
-    # Tension zone after attempted split occupies the entire cross section
-    # TODO
-
-    # Example 4.10 from [1]
-    # TODO
-    # (Polygon([(0, 0), (0, 450), (350, 450), (350, 0)]),
-    #  gm.create_line(angle=0, y_intersect=450-60),
-    #  350*450,
-    #  (
-    #     Polygon([(), (), (), ()]),
-    #     Polygon([(), (), (), ()])
-    #  )
-    # )
-])
-def test_split_compression_zone(compr_zone, neutral_axis, A_gross, desired):
+def test_capacity_diagram_ref1_example_4_10(ref1_example_4_10):
+    '''Test the capacity diagram against known values from example in ref [1].'''
 
     # ----- Setup --------
-    # Turn tuple of desired polygons(s) into collection (MultiPolygon object)
-    desired = MultiPolygon(desired)
+    # Get values from fixture for example 4.10
+    res = ref1_example_4_10
+    x, y, xs, ys, ds, fck, fyk, gamma_c, gamma_s, alpha_cc, na_locs, N, M = res
+
+    # Initiate class instance
+    section = Section(vertices=[x, y], rebars=[xs, ys, ds], fck=fck, fyk=fyk,
+                      gamma_c=gamma_c, gamma_s=gamma_s, alpha_cc=alpha_cc,
+                      eps_c=0.0035)
+
+    desired = (N, M)
 
     # ----- Exercise -----
-    actual = sec.split_compression_zone(compr_zone, neutral_axis, A_gross)
+    # Compute actual capacity diagram (without metadata)
+    Na, Ma, _ = section.capacity_diagram(neutral_axis_locations=na_locs)
 
-    # Turn tuple of actual polygon(s) into collection (MultiPolygon object)
-    actual = MultiPolygon(actual)
+    # Remove that points in the computed diagram that is not present in the example
+    actual = (Na[:6], Ma[:6])
 
     # ----- Verify -------
-    # Compare by shapely built-in method
-    # FIXME Find out if this is actually a correct way to check if they are equal
-    assert actual.equals(desired)
+    assert_array_almost_equal(desired, actual, decimal=0)
 
 
-# def test_split_compression_zone_with_empty_zone(compr_zone, neutral_axis, A_gross,
-#                                                 desired):
-#     # ----- Setup --------
-#     # Compression zone is empty
-
-#     compr_zone = Polygon()
-#     neutral_axis = gm.create_line(angle=0, y_intersect=600)
-#     A_gross = 125000
-
-#     # desired = # TODO How to test for exception?
-
-#     # ----- Exercise -----
-#     actual = sec.split_compression_zone(compr_zone, neutral_axis, A_gross)
-
-#     # Turn tuple of actual polygon(s) into collection (MultiPolygon object)
-#     actual = MultiPolygon(actual)
-
-#     # ----- Verify -------
-#     # Compare by shapely built-in method
-#     assert actual.equals(desired)
+# def test_elastic_centroid(self):
+#     '''TODO'''
+#     pass
 
 
+def test_plastic_centroid_ref1_example_4_10():
+    '''Test against example 4.10 from ref. [1] above.'''
+    # ----- Setup --------
+    x = [0, 350, 350, 0]
+    y = [0, 0, 450, 450]
+    xs = [60, 290, 60, 290]
+    ys = [60, 60, 390, 390]
+    ds = [25, 25, 32, 32]
+    fck, fyk = 25, 500
+    alpha_cc = 0.85
 
-# def test_concrete_contributions():
+    # Create a cross section instance based on input from example
+    section = Section(vertices=[x, y], rebars=[xs, ys, ds], fck=fck, fyk=fyk,
+                      gamma_c=1.5, gamma_s=1.15, alpha_cc=alpha_cc)
 
-#     # ----- Setup --------
-#     Ac = 16800
-#     lever_arm =
+    desired = (175, 238)
+
+    # ----- Exercise -----
+    actual = section.plastic_centroid
+
+    # ----- Verify -------
+    assert_almost_equal(desired, actual, decimal=0)
 
 
-#     # ----- Exercise -----
-
-#     # ----- Verify -------
-
+def test_transformed_area_rectangle():
+    pass

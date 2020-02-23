@@ -24,7 +24,7 @@ from shapely.geometry import LineString
 
 
 def create_line(angle, y_intersect):
-    '''
+    '''Return a simple line with two points as a shapely LineString. 
     '''
     # Convert angle to radians
     angle = np.radians(angle)
@@ -241,21 +241,4 @@ def furthest_vertex_from_line(polygon, linestring):
 
 
 if __name__ == '__main__':
-    x = np.array([-100, 100])
-    y = np.array([-100, -100])
-    y_intersect = -150
-    angle = 89
-    ep = evaluate_points(x, y, angle, y_intersect)
-    print(ep)
-
-    import matplotlib.pyplot as plt
-
-    x1, x2 = 0, 0
-    y1 = np.radians(angle) * x1 + y_intersect
-    y2 = np.radians(angle) * x2 + y_intersect
-
-    plt.plot(x, y, '.')
-    plt.plot([x1, x2], [y1, y2])
-    plt.axis('equal')
-    plt.show()
-
+    pass

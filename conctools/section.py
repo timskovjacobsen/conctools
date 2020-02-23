@@ -1,526 +1,275 @@
+# coding=utf-8
 
-'''
-This module contains function for operations on reinforced concrete sections.
-'''
+"""Main module.
 
-# Standard library imports
+
+Abbreviations used in comments
+    - na : neutral axis
+
+Todo
+TODO: fck > 50 MPa not implemented. Either implement or raise error if
+      it is input.
+
+"""
+
 
 # Third party imports
 import numpy as np
-from shapely.geometry import Point
 from shapely.geometry import Polygon
-from shapely.ops import split
-import shapely
+from shapely.geometry import Point
+import matplotlib.pyplot as plt
 
 # Project specific imports
-import geometry as gm
+import conctools._geometry as gm
+import conctools._section_utils as su
+from conctools.sectiongen import _neutral_axis_locs
 
 
-# CONSTANTS
-EC = 30 * 10**6
-ES = 200 * 10**6
+class Section:
+    '''Class for defining a concrete section.
 
-
-def find_compr_tension_zones(section, neutral_axis, compr_above=True):
-    '''Return the compression and tension zone of a cross section.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    # Get the line equation (angle and the y-intersection) of the neutral axis
-    angle, y_int = gm.line_equation(neutral_axis)
-
-    if not neutral_axis.crosses(section):
-        # Neutral axis is outside of section
-
-        # Extract x- and y-coordinate for centroid of section
-        cx, cy = list(section.centroid.coords)[0]
-
-        section_above = gm.evaluate_points(x=np.array([cx]), y=np.array([cy]),
-                                           angle_deg=angle, y_intersect=y_int)
-
-        if section_above:
-            # Compression zone is above neutral axis
-
-            # Set compression zone equal to the entire section if section is above
-            # neutral axis, otherwise set it equal to an empty polygon
-            compression_zone = section if compr_above else Polygon()
-
-            # Set tension zone equal to the entire section if section is below
-            # neutral axis, otherwise set it to an empty Polygon
-            tension_zone = section if not compr_above else Polygon()
-
-        else:
-            # Compression zone is below neutral axis
-
-            # Set compression zone equal to the entire section if section is below
-            # neutral axis, otherwise set it equal to an empty polygon
-            compression_zone = section if not compr_above else Polygon()
-
-            # Set tension zone equal to the entire section if section is above
-            # neutral axis, otherwise set it to an empty Polygon
-            tension_zone = section if compr_above else Polygon()
-
-        return compression_zone, tension_zone
-
-    # Split section into two polygons by means of neutral axis
-    zone1, zone2 = split(section, neutral_axis)
-
-    # Find centroid of the two zones
-    centroid_1, centroid_2 = zone1.centroid, zone2.centroid
-
-    # Gather centroid points into arrays
-    x_centroids = np.array([centroid_1.x, centroid_2.x])
-    y_centroids = np.array([centroid_1.y, centroid_2.y])
-
-    # Evaluate whether the centroid of the zones are above neutral axis
-    zone1_above, zone2_above = gm.evaluate_points(x=x_centroids, y=y_centroids,
-                                                  angle_deg=angle, y_intersect=y_int)
-
-    # Find out which zone is tension and which is compression
-    if zone1_above and not zone2_above:
-        if compr_above:
-            # Zone 1 is compressive (above neutral axis) and zone 2 is tensile
-            compression_zone, tension_zone = zone1, zone2
-        else:
-            # Zone 1 is tensile and zone 2 is compressive (above neutral axis)
-            compression_zone, tension_zone = zone2, zone1
-
-    elif zone2_above and not zone1_above:
-        if compr_above:
-            # Zone 1 is tensile and zone 2 is compressive (above neutral axis)
-            compression_zone, tension_zone = zone2, zone1
-        else:
-            # Zone 1 is compressive (above neutral axis) and zone 2 is tensile
-            compression_zone, tension_zone = zone1, zone2
-
-    else:
-        raise Exception('''Compression and tension zones relative to neutral axis
-     cannot be determined.''')
-
-    return compression_zone, tension_zone
-
-
-def split_compression_zone(compression_zone, neutral_axis, A_gross,
-                           lambda_c=0.8):
-    '''Return the compression block and the remainder of the compression zone.
-
-    The compression zone is split into two parts:
-
-        - compression block
-        - remaining zone
-
-    The line that splits the zone is created from a translation of the neutral
-    axis. The translation is such that the height of the compression block
-    becomes `lambda_c * x`, where `x` denoted the height of the entire
-    compression zone that was inputted.
-    This operation is used for analysis of a failure state of the cross section.
-
-    Parameters
-    ----------
-    compression zone : shapely Polygon object
-        The part of the cross section that is in compression.
-    neutral axis : shapely LineString object
-        A line representing the neutral axis of the cross section.
-    A_gross : number
-        The area of the entire uncracked concrete cross section.
-    lambda_c : number, optional
-        Coefficient for compression block height compared to compression
-        zone height when examining a failure state of the cross section.
-        .lambda_c * x, where x is entire height of compression zone.
-        Must be less than 1.0. Defaults to 0.8 as per EN 1992-1-1.
-
-    Returns
-    -------
-    tuple
-        Tuple of two Shapely Polygon objects with the compression zone and the
-        remainder as first and second element, respectively.
-
-    Theory
-    ------
-    The compression zone in a failure state analysis consists of a compression
-    block which has a height of `lambda_c * x` and a constant stress of `-fcd`
-    (if the most common standard stress distribution is adopted). The
-    remaining part of the compression zone with height `(1 - lambda_c) * x` is
-    the "dead zone" or "remainder", which is not considered to have concrete
-    in compression. This zone might have rebars in compression though.
-
-    Note that in the a where the entire section is in full compression and the
-    neutral axis just outside of the section, the compression block might not
-    take up the entire section.
-    '''
-    # Test if input polygon representing compression zone is non-empty
-    if compression_zone.is_empty:
-        raise Exception('''Cannot split empty compression zone.''')
-
-    # Get the point of extreme compression (point in compression furthest from na)
-    p_max, _, = gm.furthest_vertex_from_line(compression_zone, neutral_axis)
-
-    # Get coordinates for projection of extreme compression point onto neutral axis
-    p_projected = gm.project_point_to_line(neutral_axis, p_max)
-
-    # Create a shapely Point object from projected point coordinates
-    p_projected = Point(p_projected)
-
-    # Find vector for copying and transalting neutral axis to get splitting line
-    dx, dy = gm.move_point_towards_point(p_projected, p_max, relativedist=(1-lambda_c))
-
-    # Create the splitting line from translating the neutral axis
-    spliting_line = shapely.affinity.translate(neutral_axis, xoff=dx, yoff=dy)
-
-    # Split the compression zone by means of the moved neutral axis line
-    poly_collection = split(compression_zone, spliting_line)
-
-    # Check result of split operation and determine the compression block
-    if len(poly_collection) == 2:
-        # Extract the two polygons from polygon collection returned by split
-        poly1, poly2 = poly_collection
-
-        # Determine distance from neutral axis to centroid of each polygon
-        d1 = neutral_axis.distance(poly1.centroid)
-        d2 = neutral_axis.distance(poly2.centroid)
-
-        # Check relation betwen distance and determine compression block form that
-        if d1 > d2:
-            # Polygon 1 is compression block as it has largest dist to neutral axis
-            compression_block, remainder = poly1, poly2
-        else:
-            # Polygon 1 is remainder zone as it has larger dist to neutral axis
-            compression_block, remainder = poly2, poly1
-
-        return compression_block, remainder
-
-    else:
-        # The compression block consists of the entire setion, remainder is empty
-        return compression_zone, Polygon()
-
-
-def full_compression(section, compr_zone, neutral_axis):
-
-    # Split compression zone into compression block and remainder
-    compr_block, _ = split_compression_zone(compr_zone, neutral_axis,
-                                            section.area, lambda_c=0.8)
-
-    # Set area of concrete in compression to full cross section area
-    Ac = compr_block.area
-
-    # Find y-coordinate for centroid compression block
-    cy = list(compr_block.centroid.coords)[0][1]
-
-    # Signed dist btw. y-coord of plastic center and centroid of compr block
-    arm = section.plastic_centroid[1] - cy
-
-    # Find force and moment contributions to capacity from the concrete
-    Fc, Mc = concrete_contributions(Ac, arm, section.fcd, section.alpha_cc)
-
-    # Find distance from each rebar to neutral axis
-    rd = distance_to_na(section.rebars, neutral_axis)
-    print(rd)
-    # Make all rebar distances negative, since there's full compression
-    rd *= -1
-
-    # Find dist from extreme compression point to neutral axis
-    _, failure_dist = gm.furthest_vertex_from_line(compr_zone, neutral_axis)
-
-    return Fc, Mc, rd, failure_dist, compr_block
-
-
-def full_tension(rebars, neutral_axis):
-    '''Return ...
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
-    '''
-    # Set compression block to empty polygon
-    compr_block = Polygon()
-
-    # No concrete in compression => does not contribute to capacity
-    Fc, Mc = 0, 0
-
-    # Find distance from each rebar to neutral axis
-    rd = distance_to_na(rebars, neutral_axis)
-
-    # Set dist to failure strain point as dist to rebar furthest from na
-    failure_dist = abs(max(rd, key=abs))
-
-    return Fc, Mc, rd, failure_dist, compr_block
-
-
-def mixed_compr_tension(section, compr_zone, tension_zone, neutral_axis):
-    '''Return ...
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    # Find extreme compression point and dist from that to neutral axis
-    p_max, c_max = gm.furthest_vertex_from_line(compr_zone, neutral_axis)
-
-    # Split compression zone into compression block and remainder
-    compr_block, _ = split_compression_zone(compr_zone, neutral_axis,
-                                            section.area, lambda_c=0.8)
-
-    # Find area of concrete in compression
-    Ac = compr_block.area
-
-    # Find centroid height (y-coord) of compr. zone
-    cy = compr_block.centroid.y
-
-    # Get y-coordinate of the plastic centroid of the section
-    y_plastic_centroid = section.plastic_centroid[1]
-
-    # Dist btw. plastic center of gross section to centroid of compr block
-    arm = y_plastic_centroid - cy
-
-    # Find force and moment contributions to capacity from the concrete
-    Fc, Mc = concrete_contributions(Ac, arm, section.fcd, section.alpha_cc)
-
-    # Create array w. True for rebars in tension zone, False otherwise
-    rebars_tension = gm.points_in_polygon(section.rebars, tension_zone)
-
-    # Find rebars in compression by inverting boolean tension array
-    rebars_compr = np.invert(rebars_tension)
-
-    # Find distance from each rebar to neutral axis
-    rd = distance_to_na(section.rebars, neutral_axis)
-
-    # Make distance negative for rebars in compression
-    rd[rebars_compr] *= -1
-
-    # Compr. and tension, use c_max as dist (with eps_cu3 as failure strain)
-    failure_dist = c_max
-
-    return Fc, Mc, rd, failure_dist, compr_block
-
-
-def find_section_state():
-    pass
-
-
-def concrete_contributions(A_compression, lever_arm, fcd, alpha_cc=1.0):
-    '''
-    Return the contribution from concrete to force and moment capacity of the
-    section.
-
-    Parameters
-    ----------
-    A_compr : number or numpy.ndarray
-        Compression areas for each considered location of the neutral axis.
-    lever_arm : number
-        Lever arm between centroid of gross uncracked section and centroid
-        of compression block. Can be negative depending on coordinate system.
-    fcd : number
-        Design concrete strength
-    alpha_cc : number, optional
-        Coefficient taking into account long term effects on the
-        compressive strength of concrete and unfavorable effects from
-        the way loads may be applied. Defaults to 1.0.
-        Formula: fcd = alpha_cc * fck / gamma_c
-
-    Returns
-    -------
-    Fc : number or numpy.ndarray
-        Concrete force for each considered location of the neutral axis
-    Mc : number or numpy.ndarray
-        Concrete moment for each considered location of the neutral axis
-
-    Assumptions:
-        * Centroid of uncracked cross section is located at (0, 0)
+    The section can have any non-convex polygon shape.
     '''
 
-    # Calculate force contribution from concrete (negative in compression)
-    Fc = -alpha_cc * fcd * A_compression / 1000
+    def __init__(self, vertices, rebars, fck, fyk, gamma_c=1.5, gamma_s=1.15,
+                 alpha_cc=1.0, eps_cu=0.0035, eps_c=0.00175):
+        '''Create a section from coordinates of its vertices.
 
-    # Calculate moment contribution from concrete
-    Mc = Fc * lever_arm / 1000
+        Parameters
+        ----------
+        vertices : list (or like-like)
+            List with an array of x-coordinates of the section vertices as first
+            element and an array of y-coordinates as second element. Unit: [mm].
+        rebars : list (or like-like)
+            List with an array of x-coordinates of the rebars as first element, an
+            array of y-coordinates of rebars as second element and an array of rebar
+            diameters as third element. Unit: [mm] for all three sublists.
+        alpha_cc : number
+            Coefficient taking into account long term effects on the
+            compressive strength of concrete and unfavorable effects from
+            the way loads may be applied. Defaults to 1.0.
+            Formula: fcd = alpha_cc * fck / gamma_c
+        eps_cu : number, optional
+            Failure strain of concrete under combined effects.
+            Defaults to 0.0035 as per EN-1992-1-1, Table 3.1 for normal strength
+            concrete.
+        eps_c : number, optional
+            Failure strain of concrete for pure, uniform compression. I.e. with the
+            section in compression and neutral axis at infinity.
+            Defaults to 0.00175 as per EN-1992-1-1, Table 3.1 for normal strength
+            concrete.
 
-    return Fc, Mc
+        Todo
+        ----
+        * eps_cu, eps_cu and all the other strength and deformation characteristics
+          for concrete should be automaticall calculated based on the concrete
+          strengths and the analytical expressions given in EN-1992-1-1, Table 3.1.
+        '''
+        # Create instance attributes for x- and y-coordinates
+        self.x = vertices[0]
+        self.y = vertices[1]
+        self.fck = fck
+        self.fyk = fyk
+        self.alpha_cc = alpha_cc
 
+        self.gamma_c = gamma_c
+        self.fcd = self.fck / self.gamma_c
+        self.gamma_s = gamma_s
+        self.fyd = self.fyk / self.gamma_s
+        self.eps_cu = eps_cu
+        self.eps_c = eps_c
 
-def steel_contribution(section, rd, failure_dist, eps_failure, Es=200000):
-# def steel_contribution(section, neutral_axis, eps_failure, Es=200000):
-    '''Return ...
+        # Create attributes of numpy arrays for rebar coordinates
+        self.rebars_list = rebars
+        try:
+            self.xs = np.array(self.rebars_list[0])
+            self.ys = np.array(self.rebars_list[1])
+            self.ds = np.array(self.rebars_list[2])
+        except IndexError as e:
+            print(f'''{e}:
+            The rebar input must be a list consisting of exactly three
+            lists/arrays. So: rebars=[xs, ys, ds], where `xs`, `ys` and `ds` are
+            lists of x- and y-coordinates and diameters, respectively.
+            All in [mm].''')
 
-    Parameters
-    ----------
+        # Calculate area of rebars
+        self.As = np.pi * self.ds**2 / 4
 
-    Returns
-    -------
+        # Create a shapely Point for each rebar
+        self.rebars = [Point(x, y) for x, y in zip(self.xs, self.ys)]
 
-    Todo
-    ----
-    * Consider returning a dict with  strains, stresses, forces, arms and
-      moments as these are often not directly needed in further
-      calculations, but might be valuable for tables, plotting etc.
-    '''
-    # Compute strain in each rebar
-    strains = rebar_strain(rd, failure_dist, eps_failure)
-    # ys = section.ys
-    # strains = np.array([strain(section, neutral_axis, y, eps_failure) for y in ys])
-    print(f'rebar_strains = {strains}')
+        # Create a shapely polygon object from input vertices
+        self.polygon = Polygon([(x, y) for x, y, in zip(self.x, self.y)])
 
-    # Compute rebar stresses
-    stresses = strains * Es
-    stresses = np.clip(stresses, -section.fyd, section.fyd)
-    print(f'rebar_stresses = {stresses}')
+        # Set area as instance attribute
+        self.area = self.polygon.area
 
-    # Compute rebar force
-    forces = stresses * section.As / 1000
-    print(f'rebar_forces = {forces}')
+        # Compute geometric centroid of section and set it as attributes
+        self.geometric_centroid = self.polygon.centroid.x, self.polygon.centroid.y
 
-    # Get y-coordinate of plastic centroid of section
-    y_plastic_centroid = section.plastic_centroid[1]
+        # Set boundaries of section (minx, miny, maxx, maxy)
+        self.bounds = self.polygon.bounds
 
-    # Compute rebar moment
-    arms = y_plastic_centroid - section.ys
-    moments = forces * arms / 1000
-    print(f'rebar moment arms = {arms}')
-    print(f'rebar_moments = {moments}')
+    @property
+    def plastic_centroid(self):
+        ''' Return plastic centroid of a reinforced concrete section.'''
 
-    # Compute total rebar force and moment
-    Fs = np.sum(forces)
-    Ms = np.sum(moments)
-    print(f'Fs = {Fs}')
-    print(f'Ms = {Ms}')
+        # Find geometric centroid of the concrete alone
+        cx, cy = self.geometric_centroid
 
-    # Create dict of metadata from calculation
-    rebar_metadata = {
-        'strains': strains,
-        'stresses': stresses,
-        'forces': forces,
-        'arms': arms,
-        'moments': moments,
-    }
+        # Find forces in concrete and steel
+        Fc = self.alpha_cc * self.fcd * self.area
+        Fs = sum(self.As) * self.fyd
 
-    return Fs, Ms, rebar_metadata
+        # Find concrete and steel moment about x-axis
+        Mcx = self.alpha_cc * self.fcd * self.area * cx
+        Msx = sum(self.As * self.xs) * self.fyd
 
+        # Find concrete and steel moment about y-axis
+        Mcy = self.alpha_cc * self.fcd * self.area * cy
+        Msy = sum(self.As * self.ys) * self.fyd
 
-def distance_to_na(points, neutral_axis):
-    '''Return the distance from each rebar to the neutral axis.
+        # Calculate x and y-coordinate of plastic centroid
+        x_pl = (Mcx + Msx) / (Fc + Fs)
+        y_pl = (Mcy + Msy) / (Fc + Fs)
 
-    Parameters
-    ----------
-    points : list (or like-like)
-        List of shapely Point(s).
-    neutral_axis : shapely LineStrin object
-        Line representing the neutral axis.
+        return x_pl, y_pl
 
-    Returns
-    -------
-    numpy ndarray
-        Array with elements representing distance from neutral axis to each point.
-    '''
-    # Return list of distances from each point to the neutral axis
-    return np.array([neutral_axis.distance(point) for point in points])
+    def capacity_diagram(self, neutral_axis_locations=None, n_locations=30):
+        '''
 
+        Parameters
+        ----------
+        neutral_axes: list or like-like, optional
+            Neutral axis locations to compute the capacity diagram from. Defaults to
+            an auto generated sequence spanning the entire section and extending
+            beyond both ends.
 
-def strain(section, neutral_axis, y_seek=None, eps_c=0.00175, eps_cu=0.0035,
-           compr_above=True):
-    '''Return the strain at a location for a given cross section state.
+        Todo
+        ----
+        * Return dict of all relevant info for each na location, otherwise
+          it's hard to track each calc.
+        '''
+        # Get y-coordinate boundaries for section
+        _, miny, _, maxy = self.bounds
 
-    section : shapely Polygon
-        Section geometry.
-    neutral axis : shapely LineString
-        Line consisting of exactly two points defining the neutral axis.
-    y_seek : number, optional
-        y-coordinate at which strain is desired. Defaults to `None`, and thereby using
-        the point in the cross section that has the maximum strain.
-    eps_c : number, optional
-        Failure strain of concrete when section is subjected to uniform
-        compression.
-        Defaults to the value embedded in `section`.
-    eps_cu : number, optional
-        Failure strain of concrete under combined effects.
-        Defaults to the value embedded in `section`.
-    compr_above : bool, optional
-        Whether compression is considered to be above or below the neutral
-        axis. Defaults to `True`.
+        # Initialize lists for holding final N-M pairs
+        N, M = [], []
 
-    Returns
-    -------
-    number
-        The strain at the y-coordinate `y_seek`.
+        # Create dict of metadata for results of each neutral axis location
+        metadata = {
+            'neutral_axis': [],
+            'compr_above_na': [],
+            'compression_zone': [],
+            'tension_zone': [],
+            'compression_block': [],
+            'failure_strain': [],
+            'Fc': [],
+            'Mc': [],
+            'Fs': [],
+            'Ms': [],
+            'N': [],
+            'M': [],
+            }
 
-    Notes
-    -----
-    When the section is in full tension, the strain is taken as 0.0035 as for
-    case with a mixed compression/tension section. In reality the failure
-    strain will be the steel tensile failure strain, but since the rebars are
-    sure to have yielded at a strain of 0.0035 the forces (and thereby the
-    capacity) will be the same.
+        for compr_above in [True, False]:
 
-    TODO Setup tests!
-    '''
+            # Check if custom neutral axis locations were input, otherwise auto-generate
+            if neutral_axis_locations is None:
+                # Set boundaries for neutral axis locs to avoid analysing locs where
+                # where section is in full tension but rebars are not yielding.
+                # TODO: Refer to more detailed description
+                max_na = maxy if compr_above else maxy+1000
+                min_na = miny-1000 if compr_above else miny
 
-    # Set failure strains to those of `section` if they were not inputted
-    if not eps_c:
-        eps_c = section.eps_c
-    if not eps_cu:
-        eps_cu = section.eps_cu
+                # Generate neutral axis location across the section
+                neutralaxis_locations = _neutral_axis_locs((min_na, max_na),
+                                                           n_locations,
+                                                           traverse_upwards=True)
+            else:
+                # Set neutral axis locations to what was specifically inputted
+                neutralaxis_locations = neutral_axis_locations
 
-    # Extract the two y-coordinates of the netural axis
-    ys = [sublist[1] for sublist in list(neutral_axis.coords)]
+            # Loop over neutral axis locations
+            for y_na in neutralaxis_locations:
 
-    # Check if neutral axis is horizontal, if not raise an error
-    if not ys[0] == ys[1]:
-        raise NotImplementedError(f'''
-    Currently this function only supports cases with horizontal neutral axis.
-    The inputted neutral axis has y1={ys[0]} and y2={ys[1]}.''')
+                # Create line representing neutral axis
+                neutral_axis = gm.create_line(angle=0, y_intersect=y_na)
 
-    # Get upper and lower bound of cross section
-    _, miny, _, maxy = section.bounds
+                # Find the cross section state (pure compression, pure tension or mix)
+                compr_zone, tension_zone = su.find_compr_tension_zones(
+                    self.polygon, neutral_axis, compr_above=compr_above)
 
-    # Set up coordinates for linear interpolation
-    x1 = ys[0]
-    y1 = 0
-    x2 = (miny + maxy) / 2
-    y2 = eps_c
+                # Determine y-coord. of failure strain based in neutral axis
+                eps_failure = su.strain(self, neutral_axis, y_seek=None,
+                                        compr_above=compr_above)
+                # Determine state of the section and perform computations accordingly
+                if not compr_zone.is_empty and tension_zone.is_empty:
+                    # --- SECTION IN IN FULL COMPRESSION ---
 
-    # If `y_seek` was not input, use the y-coord of max strain in the section
-    if not y_seek:
-        y_seek = maxy if compr_above else miny
+                    # Perform full compression analysis and get relevant results
+                    Fc, Mc, rd, failure_dist, compr_block = su.full_compression(
+                        self, compr_zone, neutral_axis)
 
-    # Calculate strain at desired point by linear interpolation
-    # Note: `y_seek` is technically an x-coordinate in the interpolation
-    try:
-        eps = (y2 - y1) / (x2 - x1) * (y_seek - x1) + y1
-    except ZeroDivisionError:
-        eps = 0
+                elif compr_zone.is_empty and not tension_zone.is_empty:
+                    # --- SECTION IS IN FULL TENSION ---
 
-    # Set the y-coord. at which the section enters full compr. state (top or bottom)
-    y_full_compression = miny if compr_above else maxy
+                    Fc, Mc, rd, failure_dist, compr_block = su.full_tension(
+                        self.rebars, neutral_axis)
 
-    if compr_above:
-        # Return computed strain if section is in full compression, eps_cu otherwise
-        return eps if x1 < y_full_compression else 0.0035
-    else:
-        return eps if x1 > y_full_compression else 0.0035
+                elif not compr_zone.is_empty and not tension_zone.is_empty:
+                    # --- SECTION IS IN PARTIAL COMPRESSION AND PARTIAL TENSION ---
 
+                    Fc, Mc, rd, failure_dist, compr_block = su.mixed_compr_tension(
+                        self, compr_zone, tension_zone, neutral_axis)
 
-def rebar_strain(rebar_dist, failure_dist, eps_failure):
-    '''
+                Fs, Ms, _ = su.steel_contribution(
+                    self, rd, failure_dist, eps_failure, Es=200000)
 
-    Parameters
-    ----------
-    rebar_dist: numpy ndarray
-        ...
-    failure_dist: number
-        Distance from neutral axis to point of failure strain, i.e. eps_failure
+                # Compute total resisting force and moment (capacities)
+                N_final = Fs + Fc
+                M_final = Mc + Ms
+                N.append(N_final)
+                M.append(M_final)
 
-    For EN 1992-1-1:
-        eps_cu=0.0035, eps_c2=0.002, eps_su=0.025
-    '''
-    return eps_failure * rebar_dist / failure_dist
+                # Update dict of section metadata for calculation
+                metadata['neutral_axis'].append(y_na)
+                metadata['compr_above_na'].append(compr_above)
+                metadata['compression_zone'].append(compr_zone)
+                metadata['tension_zone'].append(tension_zone)
+                metadata['compression_block'].append(compr_block)
+                metadata['failure_strain'].append(eps_failure)
+                metadata['Fc'].append(Fc)
+                metadata['Mc'].append(Mc)
+                metadata['Fs'].append(Fs)
+                metadata['Ms'].append(Ms)
+                metadata['N'].append(N)
+                metadata['M'].append(N)
 
+        return N, M, metadata
 
-if __name__ == '__main__':
-    pass
+    def plot(self):
+        '''Plot the section.
+        '''
+
+        fig, ax = plt.subplots()
+
+        ax.fill(*self.polygon.exterior.xy, facecolor='silver', edgecolor='k',
+                alpha=0.75)
+
+        # Loop over rebars and plot them with true size
+        for x, y, r in zip(self.xs, self.ys, self.ds/2):
+            # Create circle patch for rebar with center (x, y) and radius r
+            rebar = plt.Circle((x, y), r, color='k', alpha=0.5)
+
+            # Add rebar circle patch to plotting axis
+            ax.add_artist(rebar)
+
+        plt.axis('equal')
+        plt.show()
+
+    def __repr__(self):
+        fck, fyk = self.fck, self.fyk
+        lv, lr = len(self.x), len(self.xs)
+        s = "class (RC) 'Section'"
+        return f'''{s} with [fck={fck}, fyk={fyk}, vertices: {lv}, rebars: {lr}]'''

@@ -1,6 +1,6 @@
 
 
-"""Tests for `section` module."""
+"""Tests for `_section_utils` module."""
 
 import os
 import sys
@@ -13,17 +13,11 @@ from shapely.geometry import LineString
 from shapely.geometry import Polygon
 from shapely.geometry import MultiPolygon
 
-# Get project root directory
-root = os.path.abspath('.')
-
-# Insert directory for module to test into path
-sys.path.insert(0, f'{root}\\conctools')
-
 # Import module to test
-import _section_utils as su      # noqa: 402
+import conctools._section_utils as su
 
 # Other project specific imports
-import _geometry as gm      # noqa: 402
+import conctools._geometry as gm
 
 
 @pytest.fixture

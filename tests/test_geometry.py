@@ -11,14 +11,8 @@ from numpy.testing import assert_array_almost_equal
 from shapely.geometry import Point
 from shapely.geometry import Polygon
 
-# Get project root directory
-root = os.path.abspath('..')
-
-# Insert directory for module to test into path
-sys.path.insert(0, f'{root}\\conctools\\conctools')
-
 # Import module to test
-import _geometry as gm   # noqa: 402
+import conctools._geometry as gm
 
 
 def test_evaluate_points_1():

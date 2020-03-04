@@ -17,14 +17,8 @@ import pytest
 from numpy.testing import assert_almost_equal
 from numpy.testing import assert_array_almost_equal
 
-# Get project root directory
-root = os.path.abspath('.')
-
-# Insert directory for module to test into path
-sys.path.insert(0, f'{root}\\conctools')
-
-# Import module to test and other project specific imports
-from section import Section       # noqa: 402
+# Import module to test
+from conctools.section import Section
 
 
 @pytest.fixture

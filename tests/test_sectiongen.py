@@ -7,14 +7,8 @@ import sys
 # import numpy as np
 # from numpy.testing import assert_almost_equal, assert_array_almost_equal
 
-# Get project root directory
-root = os.path.abspath('..')
-
-# Insert directory for module to test into path
-sys.path.insert(0, f'{root}\\conctools\\conctools')
-
 # Import module to test
-import conctools._sectiongen as sg    # noqa: 402
+import conctools._sectiongen as sg
 
 
 # TODO Adjust tests below after code to be tested was changed.

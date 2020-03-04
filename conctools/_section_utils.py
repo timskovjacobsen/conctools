@@ -456,7 +456,7 @@ def strain(section, neutral_axis, y_seek=None, eps_c=None, eps_cu=None,
         eps_c = section.eps_c
     if not eps_cu:
         eps_cu = section.eps_cu
-    print(eps_c)
+
     # Extract the two y-coordinates of the netural axis
     ys = [sublist[1] for sublist in list(neutral_axis.coords)]
 

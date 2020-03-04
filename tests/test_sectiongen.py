@@ -14,7 +14,7 @@ root = os.path.abspath('..')
 sys.path.insert(0, f'{root}\\conctools\\conctools')
 
 # Import module to test
-import conctools.sectiongen as sg    # noqa: 402
+import conctools._sectiongen as sg    # noqa: 402
 
 
 # TODO Adjust tests below after code to be tested was changed.

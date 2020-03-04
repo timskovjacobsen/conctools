@@ -27,13 +27,12 @@ Tools for analysis of reinforced concrete sections
 Current Features
 ----------------
 
-Currently ``conctools`` let's you:
+Currently **conctools** let's you:
 
 * Work with a reinforced concrete section of polygon shape
 * Calculate of plastic centroid of the section
 * Calculate of capacity (NM) diagram of the section
 * Plot the cross section
-* Plot the capacity (NM) diagram with optional load combinations
 
 Planned New Features
 --------------------
@@ -41,15 +40,7 @@ Planned New Features
 Apart from improving the already implemented features, the new features
 in focus for future releases are:
 
+* Plot of the capacity (NM) diagram with optional load combinations
 * Calculation of neutral axis, strains, stresses and forces in the section
   for given (N, M) loads.
 * Crack width verification
-
-Credits
--------
-
-This package was created with Cookiecutter_ and the
-`audreyr/cookiecutter-pypackage`_ project template.
-
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage

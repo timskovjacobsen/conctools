@@ -165,7 +165,7 @@ texinfo_documents = [
 
 # TSJA: Add custom css for syntax highlighting
 html_context = {
-    'css_files': ['_static/manni.css'],
+    # 'css_files': ['_static/manni.css'],
     # 'css_files': ['_static/native.css'],
     # 'css_files': ['_static/github.css'],
 }

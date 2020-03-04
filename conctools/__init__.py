@@ -1,12 +1,8 @@
 '''Top-level package for conctools.
 
 
-Explanation of the import statements below
-------------------------------------------
-
-*   The purpose of the `from .module_name import *` statements is to import the
-    namespace of the modules at import on user side.
-    E.g.
+How to use ``conctools`` in a project
+-------------------------------------
 
     Alternative 1:
         >>> import conctools
@@ -24,4 +20,3 @@ __version__ = '0.1.0'
 
 # Import entire namespace from module conctools.py
 from .section import *              # noqa
-from .sectiongen import *           # noqa

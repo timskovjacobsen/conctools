@@ -1,0 +1,3 @@
+conctools==0.1.0
+numpy==1.18.1
+Shapely==1.6.4.post2

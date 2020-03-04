@@ -1,20 +1,5 @@
 # coding=utf-8
 
-"""Main module.
-
-
-Abbreviations used in comments
-    - na : neutral axis
-
-Todo
-TODO: fck > 50 MPa not implemented. Either implement or raise error if
-      it is input.
-TODO Create alternative constructor for polygons and circles in the same class
-     `Section`.
-
-"""
-
-
 # Third party imports
 import numpy as np
 from shapely.geometry import Polygon
@@ -31,6 +16,12 @@ class Section:
     '''Class for defining a concrete section.
 
     The section can have any non-convex polygon shape.
+
+    Todo
+    ----
+    * Implement high strength concretes (fck > 50 MPa). The additional logic required
+      is not currently implemented and there is no warning about it.
+    * Create alternative constructor for circular sections.
     '''
 
     def __init__(self, vertices, rebars, fck, fyk, gamma_c=1.5, gamma_s=1.15,

@@ -266,7 +266,8 @@ class Section:
         plt.axis('equal')
         plt.show()
 
-    def plot_capacity_diagram(self, n_locations=N_LOCATIONS, NM=None, **kwargs):
+    def plot_capacity_diagram(self, n_locations=N_LOCATIONS, NM=None,
+                              flip_axes=False, **kwargs):
         '''Plot the capacity diagram for the section.
 
         Note that the plt.show() must be called after the method call to show the
@@ -283,6 +284,10 @@ class Section:
             (N, M). This can be used to avoid re-computing the diagram if it
             already has been done once. If not given, the function computes the
             values.
+        flip_axes: bool
+            Whether to flip the axes in the resulting plot. If `True`, plot normal
+            force (N) on x-axis and moment (M) on y-axis. Vice versa if `False`.
+            Defaults to `True`.
         **kwargs: dict
             Keyword arguments to forward to the matplotlib line plot for customization.
             See https://matplotlib.org/3.2.0/api/_as_gen/matplotlib.pyplot.plot.html
@@ -291,7 +296,6 @@ class Section:
         Todo
         ----
         * Create a custom "good looking" plot if **kwargs is not given.
-        * Add option co control which axis M and N appears on.
         '''
 
         fig, ax = plt.subplots()
@@ -303,7 +307,10 @@ class Section:
 
         ax.set_ylabel('M [kNm]')
 
-        ax.plot(N, M, **kwargs)
+        if flip_axes:
+            ax.plot(M, N, **kwargs)
+        else:
+            ax.plot(N, M, **kwargs)
 
     def __repr__(self):
         fck, fyk = self.fck, self.fyk

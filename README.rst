@@ -4,18 +4,18 @@ conctools
 
 
 .. image:: https://img.shields.io/pypi/v/conctools.svg
-        :target: https://pypi.python.org/pypi/conctools
+   :target: https://pypi.python.org/pypi/conctools
 
 .. image:: https://img.shields.io/travis/timskovjacobsen/conctools.svg
-        :target: https://travis-ci.org/timskovjacobsen/conctools
+   :target: https://travis-ci.org/timskovjacobsen/conctools
 
 .. image:: https://readthedocs.org/projects/conctools/badge/?version=latest
-        :target: https://conctools.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
+   :target: https://conctools.readthedocs.io/en/latest/?badge=latest
+   :alt: Documentation Status
 
 .. image:: https://pyup.io/repos/github/timskovjacobsen/conctools/shield.svg
-     :target: https://pyup.io/repos/github/timskovjacobsen/conctools/
-     :alt: Updates
+   :target: https://pyup.io/repos/github/timskovjacobsen/conctools/
+   :alt: Updates
 
 
 Tools for analysis of reinforced concrete sections

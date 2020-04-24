@@ -16,7 +16,7 @@ How to use ``conctools`` in a project
 
 __author__ = '''Tim Skov Jacobsen'''
 __email__ = 'timskovjacobsen@gmail.com'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 # Import entire namespace from module conctools.py
 from .section import *              # noqa

@@ -501,9 +501,9 @@ def rebar_strain(rebar_dist, failure_dist, eps_failure):
 
     Parameters
     ----------
-    rebar_dist: numpy ndarray
+    rebar_dist : numpy ndarray
         ...
-    failure_dist: number
+    failure_dist : number
         Distance from neutral axis to point of failure strain, i.e. eps_failure
 
     For EN 1992-1-1:

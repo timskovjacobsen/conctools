@@ -12,6 +12,10 @@ import conctools._section_utils as su
 from conctools._sectiongen import neutral_axis_locs
 
 
+# Default number of locations for production of NM-diagram
+N_LOCATIONS = 60
+
+
 class Section:
     '''Class for defining a concrete section.
 
@@ -128,7 +132,7 @@ class Section:
 
         return x_pl, y_pl
 
-    def capacity_diagram(self, neutral_axis_locations=None, n_locations=30):
+    def capacity_diagram(self, neutral_axis_locations=None, n_locations=N_LOCATIONS):
         '''
 
         Parameters
@@ -176,8 +180,9 @@ class Section:
                 min_na = miny-1000 if compr_above else miny
 
                 # Generate neutral axis location across the section
+                n_locations_half = int(n_locations / 2)
                 neutralaxis_locations = neutral_axis_locs((min_na, max_na),
-                                                          n_locations,
+                                                          n_locations_half,
                                                           traverse_upwards=True)
             else:
                 # Set neutral axis locations to what was specifically inputted
@@ -260,6 +265,52 @@ class Section:
 
         plt.axis('equal')
         plt.show()
+
+    def plot_capacity_diagram(self, n_locations=N_LOCATIONS, NM=None,
+                              flip_axes=False, **kwargs):
+        '''Plot the capacity diagram for the section.
+
+        Note that the plt.show() must be called after the method call to show the
+        plot. The method only generates the axis, ready to be shown.
+
+        Parameters
+        ----------
+        n_locations: str, optional
+            Number of strain states (or neutral axis locations) to analyse.
+            The number of points in the diagram will be `n_locations`.
+            Defaults to 60.
+        NM: tuple, optional
+            Tuple of arrays for potentially pre-computed normal force and moments
+            (N, M). This can be used to avoid re-computing the diagram if it
+            already has been done once. If not given, the function computes the
+            values.
+        flip_axes: bool
+            Whether to flip the axes in the resulting plot. If `True`, plot normal
+            force (N) on x-axis and moment (M) on y-axis. Vice versa if `False`.
+            Defaults to `True`.
+        **kwargs: dict
+            Keyword arguments to forward to the matplotlib line plot for customization.
+            See https://matplotlib.org/3.2.0/api/_as_gen/matplotlib.pyplot.plot.html
+            for more info.
+
+        Todo
+        ----
+        * Create a custom "good looking" plot if **kwargs is not given.
+        '''
+
+        fig, ax = plt.subplots()
+
+        if not NM:
+            N, M, _ = self.capacity_diagram(n_locations=n_locations)
+        else:
+            N, M = NM
+
+        ax.set_ylabel('M [kNm]')
+
+        if flip_axes:
+            ax.plot(M, N, **kwargs)
+        else:
+            ax.plot(N, M, **kwargs)
 
     def __repr__(self):
         fck, fyk = self.fck, self.fyk

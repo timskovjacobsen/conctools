@@ -26,6 +26,7 @@ class Section:
     * Implement high strength concretes (fck > 50 MPa). The additional logic required
       is not currently implemented and there is no warning about it.
     * Create alternative constructor for circular sections.
+    * Create alternative constructor for smeared out reinforcement.
     '''
 
     def __init__(self, vertices, rebars, fck, fyk, gamma_c=1.5, gamma_s=1.15,
@@ -137,7 +138,7 @@ class Section:
 
         Parameters
         ----------
-        neutral_axes: list or like-like, optional
+        neutral_axes : list or like-like, optional
             Neutral axis locations to compute the capacity diagram from. Defaults to
             an auto generated sequence spanning the entire section and extending
             beyond both ends.
@@ -275,7 +276,7 @@ class Section:
 
         Parameters
         ----------
-        n_locations: str, optional
+        n_locations : str, optional
             Number of strain states (or neutral axis locations) to analyse.
             The number of points in the diagram will be `n_locations`.
             Defaults to 60.
@@ -284,14 +285,18 @@ class Section:
             (N, M). This can be used to avoid re-computing the diagram if it
             already has been done once. If not given, the function computes the
             values.
-        flip_axes: bool
+        flip_axes : bool
             Whether to flip the axes in the resulting plot. If `True`, plot normal
             force (N) on x-axis and moment (M) on y-axis. Vice versa if `False`.
             Defaults to `True`.
-        **kwargs: dict
+        **kwargs : dict
             Keyword arguments to forward to the matplotlib line plot for customization.
             See https://matplotlib.org/3.2.0/api/_as_gen/matplotlib.pyplot.plot.html
             for more info.
+            Note that some default keyword arguments for styling the plot are defined
+            by this method in case no arguments are specified by the method call.
+            Any specific user inputted keyword argument will take priority over a
+            potential deafault value.
 
         Todo
         ----
@@ -305,12 +310,18 @@ class Section:
         else:
             N, M = NM
 
-        ax.set_ylabel('M [kNm]')
+        data = (M, N) if flip_axes else (N, M)
+        labels = ('M [kNm', 'N [kN]') if flip_axes else ('N [kN]', 'M [kNm]')
 
-        if flip_axes:
-            ax.plot(M, N, **kwargs)
-        else:
-            ax.plot(N, M, **kwargs)
+        # Define some deafault keyword arguments
+        default_kwargs = {'color': 'tomato'}
+
+        # Construct final keyword argument with priority to user inputs
+        plot_kwargs = {**default_kwargs, **kwargs}
+
+        ax.plot(*data, **plot_kwargs)
+        ax.set_xlabel(labels[0])
+        ax.set_ylabel(labels[1])
 
     def __repr__(self):
         fck, fyk = self.fck, self.fyk

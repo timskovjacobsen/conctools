@@ -8,8 +8,9 @@ Welcome to conctools's documentation!
    readme
    introduction
    installation
-   section
+   getting_started
    examples
+   section
    explanations
    contributing
    authors

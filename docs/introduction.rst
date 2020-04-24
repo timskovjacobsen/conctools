@@ -38,7 +38,7 @@ Some examples of features that might be used in conjunction with this package ar
 Benchmarks
 ************
 As part of the transparency described above, this documentation includes
-benchmarking of the results that the algorithms in this package provide.
+benchmarking of the results that the algorithms in this package provides.
 This means that a large extent of the outputs are compared with results
 gathered from well-known textbooks written by scientists in the field.   
 

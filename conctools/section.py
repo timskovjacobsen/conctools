@@ -268,7 +268,8 @@ class Section:
         plt.show()
 
     def plot_capacity_diagram(self, n_locations=N_LOCATIONS, NM=None,
-                              flip_axes=False, **kwargs):
+                              flip_axes=False, title='',
+                              **kwargs):
         '''Plot the capacity diagram for the section.
 
         Note that the plt.show() must be called after the method call to show the
@@ -289,6 +290,9 @@ class Section:
             Whether to flip the axes in the resulting plot. If `True`, plot normal
             force (N) on x-axis and moment (M) on y-axis. Vice versa if `False`.
             Defaults to `True`.
+        title : str
+            Title of the plot. Defaults to 'Interaction Diagram' if input string is
+            left empty.
         **kwargs : dict
             Keyword arguments to forward to the matplotlib line plot for customization.
             See https://matplotlib.org/3.2.0/api/_as_gen/matplotlib.pyplot.plot.html
@@ -322,6 +326,13 @@ class Section:
         ax.plot(*data, **plot_kwargs)
         ax.set_xlabel(labels[0])
         ax.set_ylabel(labels[1])
+
+        default_title = 'Interaction Diagram'
+
+        if title:
+            plt.title(title)
+        else:
+            plt.title(default_title)
 
     def __repr__(self):
         fck, fyk = self.fck, self.fyk

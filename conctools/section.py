@@ -12,6 +12,7 @@ import conctools._geometry as gm
 import conctools._section_utils as su
 from conctools._sectiongen import neutral_axis_locs
 
+plt.style.use('seaborn-whitegrid')
 
 # Default number of locations for production of NM-diagram
 N_LOCATIONS = 60
@@ -274,7 +275,7 @@ class Section:
 
         plt.axis('equal')
 
-    def plot_capacity_diagram(self, n_locations=N_LOCATIONS, NM=None,
+    def plot_capacity_diagram(self, n_locations=N_LOCATIONS,
                               plot_section=True, flip_axes=False, **kwargs):
         '''Plot the capacity diagram for the section.
 
@@ -287,11 +288,6 @@ class Section:
             Number of strain states (or neutral axis locations) to analyse.
             The number of points in the diagram will be `n_locations`.
             Defaults to 60.
-        NM: tuple, optional
-            Tuple of arrays for potentially pre-computed normal force and moments
-            (N, M). This can be used to avoid re-computing the diagram if it
-            already has been done once. If not given, the function computes the
-            values.
         flip_axes : bool
             Whether to flip the axes in the resulting plot. If `True`, plot normal
             force (N) on x-axis and moment (M) on y-axis. Vice versa if `False`.
@@ -316,10 +312,9 @@ class Section:
 
         fig, ax = plt.subplots()
 
-        if not NM:
-            N, M, _ = self.capacity_diagram(n_locations=n_locations)
-        else:
-            N, M = NM
+        # Compute normal force/moment pairs for diagram
+        # TODO: Store and lookup if already computed
+        N, M, _ = self.capacity_diagram(n_locations=n_locations)
 
         data = (M, N) if flip_axes else (N, M)
         labels = ('M [kNm', 'N [kN]') if flip_axes else ('N [kN]', 'M [kNm]')
@@ -334,11 +329,13 @@ class Section:
         ax.set_xlabel(labels[0])
         ax.set_ylabel(labels[1])
 
-        ax_section = inset_axes(ax, width="50%", height="75%",
-                                bbox_to_anchor=(.2, .4, .6, .5),
-                                bbox_transform=ax.transAxes, loc='upper right')
-
         if plot_section:
+            # Place the bbox in the upper right of the plot
+            # See e.g this SO question for understanding bbox: 'shorturl.at/jST78'
+            ax_section = inset_axes(ax, width="50%", height="75%",
+                                    bbox_to_anchor=(0.5, 0.54, 0.6, 0.5),
+                                    bbox_transform=ax.transAxes, loc='upper right')
+
             # Create a mini plot of the reinforced cross section
             self.plot_section_on_axis(ax_section)
             plt.axis('equal')

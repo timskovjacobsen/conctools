@@ -1,6 +1,7 @@
 # coding=utf-8
 
 # Third party imports
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import numpy as np
 from shapely.geometry import Polygon
 from shapely.geometry import Point
@@ -247,11 +248,7 @@ class Section:
 
         return N, M, metadata
 
-    def plot(self):
-        '''Plot the section.
-        '''
-
-        fig, ax = plt.subplots()
+    def plot_section_on_axis(self, ax):
 
         ax.fill(*self.polygon.exterior.xy, facecolor='silver', edgecolor='k',
                 alpha=0.75)
@@ -264,11 +261,21 @@ class Section:
             # Add rebar circle patch to plotting axis
             ax.add_artist(rebar)
 
+        return ax
+
+    def plot(self, ax=None):
+        '''Plot the section.
+        '''
+
+        if ax is None:
+            fig, ax = plt.subplots()
+
+        self.plot_section_on_axis(ax)
+
         plt.axis('equal')
-        plt.show()
 
     def plot_capacity_diagram(self, n_locations=N_LOCATIONS, NM=None,
-                              flip_axes=False, **kwargs):
+                              plot_section=True, flip_axes=False, **kwargs):
         '''Plot the capacity diagram for the section.
 
         Note that the plt.show() must be called after the method call to show the
@@ -288,6 +295,10 @@ class Section:
         flip_axes : bool
             Whether to flip the axes in the resulting plot. If `True`, plot normal
             force (N) on x-axis and moment (M) on y-axis. Vice versa if `False`.
+            Defaults to `True`.
+        plot_section : bool
+            Whether to plot a miniature representation of the reinforced cross
+            section that the capacity diagram is created from.
             Defaults to `True`.
         **kwargs : dict
             Keyword arguments to forward to the matplotlib line plot for customization.
@@ -322,6 +333,16 @@ class Section:
         ax.plot(*data, **plot_kwargs)
         ax.set_xlabel(labels[0])
         ax.set_ylabel(labels[1])
+
+        ax_section = inset_axes(ax, width="50%", height="75%",
+                                bbox_to_anchor=(.2, .4, .6, .5),
+                                bbox_transform=ax.transAxes, loc='upper right')
+
+        if plot_section:
+            # Create a mini plot of the reinforced cross section
+            self.plot_section_on_axis(ax_section)
+            plt.axis('equal')
+            ax_section.axis('off')
 
     def __repr__(self):
         fck, fyk = self.fck, self.fyk

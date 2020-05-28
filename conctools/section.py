@@ -17,7 +17,7 @@ N_LOCATIONS = 60
 
 
 class Section:
-    '''Class for defining a concrete section.
+    '''Class for defining a reinforced concrete section.
 
     The section can have any non-convex polygon shape.
 
@@ -110,7 +110,13 @@ class Section:
 
     @property
     def plastic_centroid(self):
-        ''' Return plastic centroid of a reinforced concrete section.'''
+        '''Return plastic centroid of the reinforced concrete section.
+
+        Returns
+        -------
+        tuple
+            Coordinates of the the plastic centroid in the format (x_pl, y_pl)
+        '''
 
         # Find geometric centroid of the concrete alone
         cx, cy = self.geometric_centroid
@@ -134,20 +140,32 @@ class Section:
         return x_pl, y_pl
 
     def capacity_diagram(self, neutral_axis_locations=None, n_locations=N_LOCATIONS):
-        '''
+        '''Return the capacity diagram of the reinforced concrete section.
 
         Parameters
         ----------
-        neutral_axes : list or like-like, optional
+        neutral_axes_locations : list or like-like, optional
             Neutral axis locations to compute the capacity diagram from. Defaults to
             an auto generated sequence spanning the entire section and extending
             beyond both ends.
+            If this parameter is given, it will take priorit over `n_locations`.
+        n_locations : int
+            Number of neutral axis locations to examine for creating the capacity
+            diagram.
 
+        Returns
+        -------
+        tuple
+            A tuple in the format `(N, M, metadata)`. `N` and `M` are a lists of normal
+            forces and moments for each neutral axis location considered. `metadata` is
+            a dictionary containing detailed information about the calucalation of of
+            each (N, M)-pair.
         Todo
         ----
         * Return dict of all relevant info for each na location, otherwise
           it's hard to track each calc.
         '''
+
         # Get y-coordinate boundaries for section
         _, miny, _, maxy = self.bounds
 
@@ -248,7 +266,15 @@ class Section:
         return N, M, metadata
 
     def plot(self):
-        '''Plot the section.
+        '''Plot the reinforced concrete section.
+
+        Parameters
+        ----------
+        No input parameters, as they are all stored in the object.
+
+        Returns
+        -------
+        `None`
         '''
 
         fig, ax = plt.subplots()
@@ -301,6 +327,10 @@ class Section:
             by this method in case no arguments are specified by the method call.
             Any specific user inputted keyword argument will take priority over a
             potential deafault value.
+
+        Returns
+        -------
+        `None`
 
         Todo
         ----

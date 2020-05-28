@@ -168,4 +168,5 @@ html_context = {
     # 'css_files': ['_static/manni.css'],
     # 'css_files': ['_static/native.css'],
     # 'css_files': ['_static/github.css'],
+    'css_files': ['_static/custom_theme.css'],
 }

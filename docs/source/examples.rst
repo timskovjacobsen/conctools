@@ -78,4 +78,3 @@ Calculate The Neutral Axis Location
 *Coming soon*
 
 *Want to help implement the feature? Take a look at the Contributions tab*
-

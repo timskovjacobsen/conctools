@@ -4,12 +4,19 @@
 import numpy as np
 from shapely.geometry import Polygon
 from shapely.geometry import Point
+from shapely.geometry import LinearRing
+from shapely.geometry import LineString
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 # Project specific imports
 import conctools._geometry as gm
 import conctools._section_utils as su
+import conctools._section_plot as sp
 from conctools._sectiongen import neutral_axis_locs
+
+mpl.rcParams['font.family'] = 'roboto'
+plt.style.use('seaborn-whitegrid')
 
 
 # Default number of locations for production of NM-diagram
@@ -21,15 +28,15 @@ class Section:
 
     The section can have any non-convex polygon shape.
 
-    Todo
-    ----
+    '''
+    '''TODO:
     * Implement high strength concretes (fck > 50 MPa). The additional logic required
       is not currently implemented and there is no warning about it.
     * Create alternative constructor for circular sections.
     * Create alternative constructor for smeared out reinforcement.
     '''
 
-    def __init__(self, vertices, rebars, fck, fyk, gamma_c=1.5, gamma_s=1.15,
+    def __init__(self, vertices, rebars, fck, fyk, cover=45, gamma_c=1.5, gamma_s=1.15,
                  alpha_cc=1.0, eps_cu=0.0035, eps_c=0.00175):
         '''Create a section from coordinates of its vertices.
 
@@ -42,7 +49,14 @@ class Section:
             List with an array of x-coordinates of the rebars as first element, an
             array of y-coordinates of rebars as second element and an array of rebar
             diameters as third element. Unit: [mm] for all three sublists.
-        alpha_cc : number
+        fck : number
+            Concrete strength in [MPa].
+        fyk : number
+            Yield stress of reinforcement steel in [MPa].
+        cover : number, optional
+            Concrete cover in [mm]. Minimum distance from the concrete edge to any
+            steel fiber in the cross section. Defaults to 45 mm.
+        alpha_cc : number, optional
             Coefficient taking into account long term effects on the
             compressive strength of concrete and unfavorable effects from
             the way loads may be applied. Defaults to 1.0.
@@ -57,17 +71,19 @@ class Section:
             Defaults to 0.00175 as per EN-1992-1-1, Table 3.1 for normal strength
             concrete.
 
-        Todo
-        ----
-        * eps_cu, eps_cu and all the other strength and deformation characteristics
-          for concrete should be automaticall calculated based on the concrete
-          strengths and the analytical expressions given in EN-1992-1-1, Table 3.1.
         '''
+        ''' TODO:
+        eps_cu, eps_cu and all the other strength and deformation characteristics
+        for concrete should be automaticall calculated based on the concrete
+        strengths and the analytical expressions given in EN-1992-1-1, Table 3.1.
+        '''
+
         # Create instance attributes for x- and y-coordinates
         self.x = vertices[0]
         self.y = vertices[1]
         self.fck = fck
         self.fyk = fyk
+        self.cover = cover  # TODO: Check if all rebers are completely inside the cover
         self.alpha_cc = alpha_cc
 
         self.gamma_c = gamma_c
@@ -139,6 +155,24 @@ class Section:
 
         return x_pl, y_pl
 
+    @property
+    def xy_coords(self):
+        '''Return the x- and y-coordinates of the section.
+
+        Returns
+        -------
+        tuple
+            The first element is a list of the x-coordinates of the section and the
+            second element of the y-coordinates.
+        '''
+
+        unzipped = list(zip(*self.polygon.exterior.coords))
+        x, y = unzipped[0], unzipped[1]
+        return x, y
+
+    def _to_linestring(self):
+        return LineString([*self.polygon.exterior.coords])
+
     def capacity_diagram(self, neutral_axis_locations=None, n_locations=N_LOCATIONS):
         '''Return the capacity diagram of the reinforced concrete section.
 
@@ -160,10 +194,10 @@ class Section:
             forces and moments for each neutral axis location considered. `metadata` is
             a dictionary containing detailed information about the calucalation of of
             each (N, M)-pair.
-        Todo
-        ----
-        * Return dict of all relevant info for each na location, otherwise
-          it's hard to track each calc.
+        '''
+        '''TODO:
+        Return dict of all relevant info for each na location, otherwise
+        it's hard to track each calc.
         '''
 
         # Get y-coordinate boundaries for section
@@ -265,7 +299,7 @@ class Section:
 
         return N, M, metadata
 
-    def plot(self):
+    def plot(self, title='', plot_cover=True):
         '''Plot the reinforced concrete section.
 
         Parameters
@@ -279,16 +313,28 @@ class Section:
 
         fig, ax = plt.subplots()
 
-        ax.fill(*self.polygon.exterior.xy, facecolor='silver', edgecolor='k',
+        ax.fill(*self.xy_coords, facecolor='silver', edgecolor='k',
                 alpha=0.75)
 
         # Loop over rebars and plot them with true size
         for x, y, r in zip(self.xs, self.ys, self.ds/2):
-            # Create circle patch for rebar with center (x, y) and radius r
+            # Create and add circle patch for rebar with center (x, y) and radius r
             rebar = plt.Circle((x, y), r, color='k', alpha=0.5)
-
-            # Add rebar circle patch to plotting axis
             ax.add_artist(rebar)
+
+            # Add annotations for each rebar
+            ax.annotate(f'Ø{2*r:.0f}', xy=(x, y), xytext=(x, y - r*1.02),
+                        va='top', ha='center', fontsize=9)
+
+        if title:
+            plt.title(title)
+
+        if plot_cover:
+            print('adadasda')
+            sp.plot_cover(ax, self)
+
+        ax.set_xlabel('$x$ [mm]', fontsize=12)
+        ax.set_ylabel('$y$ [mm]', fontsize=12)
 
         plt.axis('equal')
         plt.show()
@@ -331,9 +377,8 @@ class Section:
         Returns
         -------
         `None`
-
-        Todo
-        ----
+        '''
+        '''TODO:
         * Create a custom "good looking" plot if **kwargs is not given.
         '''
 

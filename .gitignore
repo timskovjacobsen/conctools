@@ -122,4 +122,7 @@ tests/img
 docs/build/_build
 
 # Sandbox folder in test directory (for unoffical brief test runs etc.)
-test/sandbox
+tests/sandbox
+
+# Example folder
+examples

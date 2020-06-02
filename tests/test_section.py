@@ -9,8 +9,7 @@ References used for tests
 """
 
 # Standard library imports
-import sys
-import os
+
 
 # Third party imports
 import pytest
@@ -26,7 +25,7 @@ def ref1_example_4_10():
     '''
     Fixture for example 4.10 in [1].
 
-    The example comoutes the interaction diagram for a rectangular reinforced
+    The example computes the interaction diagram for a rectangular reinforced
     concrete cross section.
     '''
 

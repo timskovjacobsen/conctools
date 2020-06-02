@@ -330,7 +330,6 @@ class Section:
             plt.title(title)
 
         if plot_cover:
-            print('adadasda')
             sp.plot_cover(ax, self)
 
         ax.set_xlabel('$x$ [mm]', fontsize=12)

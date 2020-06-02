@@ -17,9 +17,9 @@ requirements = [
     'matplotlib==3.1.3',
     ]
 
-setup_requirements = ['pytest-runner', ]
+setup_requirements = ['pytest-runner']
 
-test_requirements = ['pytest>=3', ]
+test_requirements = ['pytest>=3']
 
 setup(
     author="Tim Skov Jacobsen",

@@ -2,6 +2,7 @@
 conctools
 =========
 
+> This project is not actively developed.
 
 .. image:: https://img.shields.io/pypi/v/conctools.svg
    :target: https://pypi.python.org/pypi/conctools

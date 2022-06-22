@@ -13,7 +13,7 @@ with open('HISTORY.rst') as history_file:
 # Requirements to be installed along `pip install conctools`
 requirements = [
     'shapely==1.7.0',
-    'numpy==1.18.1',
+    'numpy==1.22.0',
     'matplotlib==3.1.3',
     ]
 
